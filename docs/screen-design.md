@@ -1,6 +1,6 @@
 # Editing the MAUI screens
 
-`src/OBS.Maui/MainPage.xaml` now contains the complete visual layouts for configuration errors, staff Login, Forgot Password, OTP Verification, Change Password, session revalidation, and Dashboard. Open it in Visual Studio 2022 to edit the UI. Its nested `MainPage.xaml.cs` contains event handlers and visible-screen selection; authentication, permissions, tokens, and refresh logic stay in OBS.Core.
+`src/OBS.Maui/MainPage.xaml` contains the authentication and session screens and hosts the full-width `DashboardView.xaml`. Open these files in Visual Studio 2022 to edit the UI. `MainPage.xaml.cs` selects screens and forwards authentication actions; authentication, permissions, tokens, and refresh logic stay in OBS.Core.
 
 ## Design workflow
 
@@ -20,12 +20,16 @@ The named panels make each screen easy to find: `LoginPanel`, `ForgotPasswordPan
 | Font sizes and heading appearance | Label / HeadingStyle resources |
 | Button height, corners, and colors | PrimaryButtonStyle / SecondaryButtonStyle |
 | Email/password/OTP field layout | Named Entry controls in the relevant panel |
-| Dashboard module buttons or record-card appearance | `ModuleList` BindableLayout.ItemTemplate |
+| Dashboard shell, toolbar, summary, and chart layout | `DashboardView.xaml` |
+| Dashboard navigation and metric cards | `DashboardView.xaml.cs`: `NavigationRow`, `CreateMetric`, `CreateQueue` |
+| Native activity chart and release ring | `Controls/DashboardCharts.cs` |
 
-Deployment colors and product/city names come from `theme.ini` at startup. The XAML color resources provide defaults and live edit points; for branding that persists across launches, update the theme configuration and rebuild its embedded resource. Every relevant label/control uses these theme resources.
+Deployment colors and product/city names come from `theme.ini` at startup. Authentication screens use those deployment colors. The dashboard uses its own `Dash*` resources for the reference design's lavender surfaces, gradient header, and light/dark palettes; its city label still comes from deployment configuration. Edit `DashboardView.xaml` and `OnToggleTheme` together when changing dashboard colors.
 
-Keep `x:Name` values, Clicked/Completed handler names, module CommandParameter binding, and permission-aware item source wiring intact unless you also update the code-behind. Password entries must remain password fields. Shared core checks still enforce six-digit OTP, cooldown, CPW permissions, logout cleanup, and session validation.
+Keep `x:Name` values, Clicked/Completed handlers, and permission-aware navigation wiring intact unless you also update the code-behind. Password entries must remain password fields. Shared core checks still enforce six-digit OTP, cooldown, CPW permissions, logout cleanup, and session validation.
 
-Dashboard modules remain unfinished workflow notices, not complete screens. The conversion doesn't add backend workflows or capture/report integrations. Web design remains in `.razor`/CSS files, independent of MAUI XAML.
+Both clients open the dashboard after a validated sign-in. Web also accepts `/dashboard`, with the same sign-in requirements. Its layout is in `src/OBS.Web/Components/Dashboard.razor` and `wwwroot/dashboard.css`. Both clients use the sample figures, four activity periods, navigation labels, and icon paths in `src/OBS.Core/Dashboard.cs`. The visible **Sample data** label is intentional: no reporting endpoint is connected. Search, QR scanning, notifications, and unfinished modules show availability notices. No new backend permissions are invented to populate the sidebar.
 
-Windows XAML/code compilation was verified after conversion. Actual Hot Reload behavior, screen-reader use, focus navigation, login/logout transitions, and device runtime behavior still need manual checks. After changing Android layouts, rebuild the standalone APK before expecting those changes on a phone; the previously supplied APK predates this XAML conversion.
+The period selector changes the sample chart, the theme buttons switch light/dark appearance, and the menu button collapses navigation. Narrow layouts stack cards and keep navigation accessible through an expandable menu. Sign-out and password changes continue through the existing session controller.
+
+Validation includes Windows and Android builds, the 37 existing shared regression checks, browser checks with synthetic authentication at desktop/tablet/phone widths, and Windows native view rendering in light/dark and narrow layouts. Actual backend authentication, Android device rendering, screen-reader use, and Hot Reload still need deployment/device checks. Rebuild and reinstall the Android APK to see these layouts on a phone.

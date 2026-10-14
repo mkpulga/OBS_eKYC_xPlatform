@@ -2,7 +2,7 @@
 <ContentPage
     xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
-    xmlns:core="clr-namespace:OBS.Core;assembly=OBS.Core"
+    xmlns:local="clr-namespace:OBS.Maui"
     x:Class="OBS.Maui.MainPage"
     Title="OBS_eKYC"
     BackgroundColor="{DynamicResource ThemeBackground}">
@@ -46,7 +46,9 @@
         </Style>
     </ContentPage.Resources>
 
-    <ScrollView>
+    <Grid>
+    <local:DashboardView x:Name="DashboardPanel" IsVisible="False" />
+    <ScrollView x:Name="AuthenticationScroll">
         <VerticalStackLayout x:Name="PageContent" Padding="24" Spacing="20"
                              MaximumWidthRequest="680" HorizontalOptions="Fill">
             <VerticalStackLayout Spacing="4">
@@ -113,25 +115,10 @@
                 <Label Text="Protected work remains paused until your session is validated." />
             </VerticalStackLayout>
 
-            <VerticalStackLayout x:Name="DashboardPanel" Spacing="12" IsVisible="False">
-                <Label Text="Dashboard" Style="{StaticResource HeadingStyle}" />
-                <Label x:Name="OperatorLabel" />
-                <!-- Change this item template to design your module buttons/cards.
-                     Items come only from the current user's backend authorities. -->
-                <VerticalStackLayout x:Name="ModuleList" Spacing="12">
-                    <BindableLayout.ItemTemplate>
-                        <DataTemplate x:DataType="core:NavigationEntry">
-                            <Button Text="{Binding Title}" CommandParameter="{Binding .}" Clicked="OnModuleClicked" />
-                        </DataTemplate>
-                    </BindableLayout.ItemTemplate>
-                </VerticalStackLayout>
-                <Button x:Name="DashboardPasswordButton" Text="Change Password" Clicked="OnOpenPasswordChangeClicked" IsVisible="False" />
-                <Button Text="Log out" Clicked="OnLogoutClicked" Style="{StaticResource SecondaryButtonStyle}" />
-            </VerticalStackLayout>
-
             <ActivityIndicator x:Name="BusyIndicator" IsRunning="False" IsVisible="False"
                                Color="{DynamicResource ThemeAction}" SemanticProperties.Description="Please wait" />
             <Label x:Name="MessageLabel" IsVisible="False" />
         </VerticalStackLayout>
     </ScrollView>
+    </Grid>
 </ContentPage>

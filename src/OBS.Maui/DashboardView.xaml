@@ -1,0 +1,117 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentView xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:local="clr-namespace:OBS.Maui.Controls"
+             x:Class="OBS.Maui.DashboardView" SizeChanged="OnDashboardSizeChanged"
+             BackgroundColor="{DynamicResource DashBackground}">
+    <ContentView.Resources>
+        <Color x:Key="DashBackground">#F4F3FB</Color>
+        <Color x:Key="DashSidebar">#F8F7FD</Color>
+        <Color x:Key="DashPanel">#48FFFFFF</Color>
+        <Color x:Key="DashLine">#B8FFFFFF</Color>
+        <Color x:Key="DashText">#202127</Color>
+        <Color x:Key="DashMuted">#51535F</Color>
+        <Color x:Key="DashSelected">#DCE1FA</Color>
+        <Color x:Key="DashPill">#E6E5EE</Color>
+        <Style TargetType="Label">
+            <Setter Property="TextColor" Value="{DynamicResource DashText}" />
+            <Setter Property="FontSize" Value="14" />
+        </Style>
+        <Style TargetType="Button">
+            <Setter Property="BackgroundColor" Value="Transparent" />
+            <Setter Property="BorderColor" Value="Transparent" />
+            <Setter Property="BorderWidth" Value="0" />
+            <Setter Property="TextColor" Value="{DynamicResource DashText}" />
+            <Setter Property="MinimumHeightRequest" Value="40" />
+            <Setter Property="CornerRadius" Value="20" />
+            <Setter Property="Padding" Value="10,4" />
+            <Setter Property="FontSize" Value="12" />
+        </Style>
+        <Style x:Key="Card" TargetType="Border">
+            <Setter Property="BackgroundColor" Value="{DynamicResource DashPanel}" />
+            <Setter Property="Stroke" Value="{DynamicResource DashLine}" />
+            <Setter Property="StrokeThickness" Value="1" />
+            <Setter Property="StrokeShape" Value="RoundRectangle 22" />
+            <Setter Property="Padding" Value="20" />
+        </Style>
+        <Style x:Key="Heading" TargetType="Label">
+            <Setter Property="TextColor" Value="{DynamicResource DashText}" />
+            <Setter Property="FontSize" Value="16" />
+            <Setter Property="FontAttributes" Value="Bold" />
+            <Setter Property="SemanticProperties.HeadingLevel" Value="Level2" />
+        </Style>
+        <Style x:Key="Caption" TargetType="Label">
+            <Setter Property="TextColor" Value="{DynamicResource DashMuted}" />
+            <Setter Property="FontSize" Value="11" />
+            <Setter Property="CharacterSpacing" Value="0.25" />
+        </Style>
+    </ContentView.Resources>
+    <Grid x:Name="ShellGrid">
+        <Grid.ColumnDefinitions><ColumnDefinition x:Name="SidebarColumn" Width="280" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+        <Grid x:Name="Sidebar" RowDefinitions="Auto,Auto,*,Auto" Padding="12,8,12,12" BackgroundColor="{DynamicResource DashSidebar}" ZIndex="2">
+            <Grid WidthRequest="40" HeightRequest="40" HorizontalOptions="Start">
+                <Button Clicked="OnToggleSidebar" BackgroundColor="{DynamicResource DashPill}" SemanticProperties.Description="Toggle navigation" />
+                <local:DashboardIcon Kind="menu" Tint="{DynamicResource DashMuted}" HorizontalOptions="Center" VerticalOptions="Center" />
+            </Grid>
+            <Border x:Name="ProfileCard" Grid.Row="1" Stroke="{DynamicResource DashLine}" StrokeShape="RoundRectangle 24" Padding="12,10" Margin="0,2,0,0">
+                <Grid ColumnDefinitions="40,*" ColumnSpacing="12">
+                    <Border StrokeThickness="0" StrokeShape="RoundRectangle 20" BackgroundColor="#485E98" WidthRequest="40" HeightRequest="40"><Label x:Name="InitialsLabel" TextColor="White" FontAttributes="Bold" HorizontalTextAlignment="Center" VerticalTextAlignment="Center" /></Border>
+                    <VerticalStackLayout Grid.Column="1" Spacing="2" VerticalOptions="Center"><Label x:Name="OperatorLabel" FontSize="13" FontAttributes="Bold" LineBreakMode="TailTruncation" /><Label Text="Staff workspace" Style="{StaticResource Caption}" /></VerticalStackLayout>
+                </Grid>
+            </Border>
+            <ScrollView Grid.Row="2" Margin="0,12,0,0"><VerticalStackLayout x:Name="ModuleList" Spacing="2" /></ScrollView>
+            <VerticalStackLayout Grid.Row="3" x:Name="SidebarActions" Spacing="0" />
+        </Grid>
+        <Grid Grid.Column="1" RowDefinitions="Auto,*">
+            <BoxView x:Name="HeaderGradient" Grid.RowSpan="2" HeightRequest="230" VerticalOptions="Start" InputTransparent="True">
+                <BoxView.Background><LinearGradientBrush StartPoint="0,0" EndPoint="1,0.5"><GradientStop Color="#BFE0DD" Offset="0" /><GradientStop Color="#F9D4D2" Offset="0.3" /><GradientStop Color="#FCEBBE" Offset="0.65" /><GradientStop Color="#ED93A6" Offset="1" /></LinearGradientBrush></BoxView.Background>
+            </BoxView>
+            <BoxView Grid.RowSpan="2" HeightRequest="230" VerticalOptions="Start" InputTransparent="True">
+                <BoxView.Background><LinearGradientBrush StartPoint="0,0" EndPoint="0,1"><GradientStop Color="Transparent" Offset="0.45" /><GradientStop Color="{DynamicResource DashBackground}" Offset="1" /></LinearGradientBrush></BoxView.Background>
+            </BoxView>
+            <Grid x:Name="Toolbar" ColumnDefinitions="184,*,Auto" ColumnSpacing="16" Padding="36,12,36,20" MinimumHeightRequest="79">
+                <VerticalStackLayout x:Name="DateBlock" Spacing="1" VerticalOptions="Center"><Label x:Name="DateLabel" FontSize="13" /><Label x:Name="TimeLabel" Style="{StaticResource Caption}" /></VerticalStackLayout>
+                <Border x:Name="SearchBorder" Grid.Column="1" Stroke="#60B4B7C5" StrokeShape="RoundRectangle 16" Padding="10,0,4,0" HeightRequest="44">
+                    <Grid ColumnDefinitions="20,96,*,32,32" ColumnSpacing="5">
+                        <local:DashboardIcon Kind="search" Tint="{DynamicResource DashMuted}" WidthRequest="17" HeightRequest="17" VerticalOptions="Center" />
+                        <Picker x:Name="SearchType" Grid.Column="1" FontSize="11" VerticalOptions="Center" TextColor="{DynamicResource DashText}" BackgroundColor="Transparent" SemanticProperties.Description="Search by"><Picker.Items><x:String>QR Code</x:String><x:String>Cardholder</x:String><x:String>Reference No.</x:String></Picker.Items></Picker>
+                        <Entry x:Name="SearchEntry" Grid.Column="2" Placeholder="Search records" FontSize="14" BackgroundColor="Transparent" TextColor="{DynamicResource DashText}" PlaceholderColor="{DynamicResource DashMuted}" ReturnType="Search" Completed="OnSearch" SemanticProperties.Description="Search records" />
+                        <Grid Grid.Column="3"><Button Clicked="OnScan" SemanticProperties.Description="Scan QR code" /><local:DashboardIcon Kind="qr" Tint="{DynamicResource DashMuted}" WidthRequest="17" HeightRequest="17" VerticalOptions="Center" HorizontalOptions="Center" /></Grid>
+                        <Grid Grid.Column="4"><Button Clicked="OnSearch" SemanticProperties.Description="Search records" /><local:DashboardIcon Kind="filter" Tint="{DynamicResource DashMuted}" WidthRequest="17" HeightRequest="17" VerticalOptions="Center" HorizontalOptions="Center" /></Grid>
+                    </Grid>
+                </Border>
+                <HorizontalStackLayout x:Name="ToolbarActions" Grid.Column="2" Spacing="4" VerticalOptions="Center">
+                    <Grid WidthRequest="36" HeightRequest="40"><Button Clicked="OnNotifications" SemanticProperties.Description="Notifications" /><local:DashboardIcon Kind="bell" Tint="{DynamicResource DashText}" VerticalOptions="Center" HorizontalOptions="Center" /></Grid>
+                    <Grid WidthRequest="36" HeightRequest="40"><Button x:Name="ThemeButton" Clicked="OnToggleTheme" SemanticProperties.Description="Switch to dark mode" /><local:DashboardIcon x:Name="ThemeIcon" Kind="moon" Tint="{DynamicResource DashMuted}" VerticalOptions="Center" HorizontalOptions="Center" /></Grid>
+                    <Label x:Name="ToolbarCityLabel" VerticalOptions="Center" Margin="8,0,0,0" FontSize="14" LineBreakMode="TailTruncation" MaximumWidthRequest="160" />
+                </HorizontalStackLayout>
+            </Grid>
+            <ScrollView Grid.Row="1"><VerticalStackLayout x:Name="MainContent" Padding="36,0,36,12" Spacing="14">
+                <Border x:Name="NoticeCard" Style="{StaticResource Card}" IsVisible="False" Padding="16,12"><Grid ColumnDefinitions="*,40"><Label x:Name="NoticeLabel" VerticalOptions="Center" FontSize="13" /><Button Grid.Column="1" Text="×" Clicked="OnDismissNotice" SemanticProperties.Description="Dismiss notice" /></Grid></Border>
+                <Border x:Name="WorkflowCard" Style="{StaticResource Card}" IsVisible="False"><VerticalStackLayout Spacing="16"><Label x:Name="WorkflowTitle" Style="{StaticResource Heading}" /><Label Text="This workflow is not available yet." /><Button Text="Back to dashboard" Clicked="OnOverview" BackgroundColor="#485E98" TextColor="White" HorizontalOptions="Start" Padding="18,8" /></VerticalStackLayout></Border>
+                <Grid x:Name="DashboardColumns" ColumnDefinitions="*,286" ColumnSpacing="14" RowSpacing="14">
+                    <VerticalStackLayout x:Name="PrimaryColumn" Spacing="14">
+                        <Border Style="{StaticResource Card}" Padding="21,18,21,20">
+                            <VerticalStackLayout Spacing="0">
+                                <Grid ColumnDefinitions="*,Auto"><VerticalStackLayout Spacing="2"><Label Text="Dashboard" FontSize="24" FontAttributes="Bold" SemanticProperties.HeadingLevel="Level1" /><Label x:Name="SubtitleLabel" Style="{StaticResource Caption}" /></VerticalStackLayout><Border Grid.Column="1" Stroke="#8EDCCA" StrokeShape="RoundRectangle 16" Padding="10,7" VerticalOptions="Center"><HorizontalStackLayout Spacing="6"><BoxView WidthRequest="6" HeightRequest="6" CornerRadius="3" Color="#42D4B2" VerticalOptions="Center" /><Label Text="OVERVIEW" FontSize="9" TextColor="{DynamicResource DashMuted}" /></HorizontalStackLayout></Border></Grid>
+                                <Label Text="Overall portfolio" Style="{StaticResource Heading}" Margin="0,25,0,17" />
+                                <Grid x:Name="PortfolioGrid" ColumnDefinitions="*,*,*" ColumnSpacing="12" RowSpacing="8" />
+                            </VerticalStackLayout>
+                        </Border>
+                        <Border Style="{StaticResource Card}" Padding="21,20,21,22">
+                            <VerticalStackLayout Spacing="0">
+                                <Grid x:Name="ActivityHeading" ColumnDefinitions="*,Auto" RowSpacing="12"><VerticalStackLayout Spacing="3"><Label Text="Activity overview" Style="{StaticResource Heading}" /><Label Text="Accounts, KYC and cards processed" Style="{StaticResource Caption}" /></VerticalStackLayout><Border x:Name="PeriodBorder" Grid.Column="1" StrokeThickness="0" StrokeShape="RoundRectangle 20" BackgroundColor="{DynamicResource DashPill}" Padding="3" VerticalOptions="Start"><HorizontalStackLayout x:Name="PeriodButtons" Spacing="0" /></Border></Grid>
+                                <HorizontalStackLayout Spacing="18" Margin="0,15,0,14"><HorizontalStackLayout Spacing="7"><BoxView Color="#42D4B2" WidthRequest="8" HeightRequest="8" CornerRadius="4" VerticalOptions="Center" /><Label Text="Completed" Style="{StaticResource Caption}" /></HorizontalStackLayout><HorizontalStackLayout Spacing="7"><BoxView Color="#9057FF" WidthRequest="8" HeightRequest="8" CornerRadius="4" VerticalOptions="Center" /><Label Text="In progress" Style="{StaticResource Caption}" /></HorizontalStackLayout></HorizontalStackLayout>
+                                <GraphicsView x:Name="ActivityChart" HeightRequest="500" />
+                            </VerticalStackLayout>
+                        </Border>
+                    </VerticalStackLayout>
+                    <VerticalStackLayout x:Name="SecondaryColumn" Grid.Column="1" Spacing="14">
+                        <Border Style="{StaticResource Card}" Padding="20,18,20,12"><VerticalStackLayout Spacing="4"><Label Text="Release progress" Style="{StaticResource Caption}" /><Grid HeightRequest="152" WidthRequest="152" HorizontalOptions="Center"><GraphicsView x:Name="ReleaseChart" /><VerticalStackLayout VerticalOptions="Center" HorizontalOptions="Center" Spacing="0"><Label x:Name="ReleasePercentLabel" FontSize="25" FontAttributes="Bold" HorizontalTextAlignment="Center" /><Label Text="of requested" Style="{StaticResource Caption}" HorizontalTextAlignment="Center" /></VerticalStackLayout></Grid></VerticalStackLayout></Border>
+                        <VerticalStackLayout x:Name="QueueCards" Spacing="14" />
+                    </VerticalStackLayout>
+                </Grid>
+            </VerticalStackLayout></ScrollView>
+        </Grid>
+    </Grid>
+</ContentView>

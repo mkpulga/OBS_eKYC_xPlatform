@@ -1,4 +1,5 @@
 @page "/"
+@page "/dashboard"
 @page "/error"
 @implements IAsyncDisposable
 @inject SessionController Session
@@ -6,21 +7,17 @@
 @inject ThemeOptions Theme
 @inject IJSRuntime JS
 
+@if (Deployment.Error is null && Session.ContractAvailable && Session.ProtectedWorkAllowed && Session.Current is { } dashboardUser)
+{
+    <Dashboard Email="@dashboardUser.Email" CityName="@Theme.CityName" Modules="@Navigation.For(dashboardUser).ToArray()"
+               CanChangePassword="@dashboardUser.Allows("CPW")" Message="@Session.Message"
+               OnLogout="Logout" OnChangePassword="Session.BeginPasswordChange" />
+}
+else
+{
 <div class="app" style="--nav:@Theme.Navigation;--action:@Theme.Action;--background:@Theme.Background;--text:@Theme.Text">
     <aside>
         <h1>@Theme.ProductName</h1><p>@Theme.CityName</p>
-        @if (Session.ProtectedWorkAllowed && Session.Current is { } staff)
-        {
-            <nav aria-label="Staff modules">
-                <button @onclick="() => selected = null">Dashboard</button>
-                @foreach (var entry in Navigation.For(staff))
-                {
-                    <button @onclick="() => Select(entry)">@entry.Title</button>
-                }
-                @if (staff.Allows("CPW")) { <button @onclick="Session.BeginPasswordChange">Change Password</button> }
-                <button @onclick="Logout">Log out</button>
-            </nav>
-        }
     </aside>
     <main id="main">
         @if (Deployment.Error is not null)
@@ -65,31 +62,17 @@
                 </form><button @onclick="Logout">Return to Login</button>
             </section>
         }
-        else if (Session.ProtectedWorkAllowed && Session.Current is { } user)
-        {
-            <section class="panel"><h2>@(selected?.Title ?? "Dashboard")</h2><p>Signed in as @user.Email</p>
-                @if (selected is not null)
-                {
-                    <p role="status">This workflow is blocked in this migration until its data, action contracts, and acceptance tests are implemented.</p>
-                }
-                else
-                {
-                    <p>Your permitted modules appear in the navigation.</p>
-                    <p>Web capture is unavailable. Required saved captures remain mandatory for submission.</p>
-                }
-            </section>
-        }
         else if (Session.Stage == SignInStage.Protected)
         { <section class="panel"><h2>Checking your session</h2><p>Protected work will resume after session validation.</p></section> }
         @if (!string.IsNullOrEmpty(Session.Message)) { <p class="message" role="status" aria-live="polite">@Session.Message</p> }
         <footer>OBS_eKYC · @Deployment.Contract / @Deployment.Features · Authentication migration</footer>
     </main>
 </div>
+}
 
 @code {
     private string email = "", password = "", otp = "", newPassword = "", confirmation = "";
     private bool busy, forgot, disposed;
-    private NavigationEntry? selected;
     private readonly CancellationTokenSource stop = new();
     private Task? checks, countdown;
     private DotNetObjectReference<Home>? reference;
@@ -120,7 +103,7 @@
         if (disposed) return;
         _ = InvokeAsync(() =>
         {
-            if (Session.Stage == SignInStage.Login) { ClearFields(); selected = null; }
+            if (Session.Stage == SignInStage.Login) ClearFields();
             if (Session.Stage is SignInStage.Protected or SignInStage.PasswordChange) { password = ""; otp = ""; }
             StateHasChanged();
         });
@@ -139,10 +122,6 @@
     private void ToggleForgot() { forgot = !forgot; ClearFields(); }
     private void Back() { Session.BackToLogin(); ClearFields(); }
     private void ClearFields() { email = password = otp = newPassword = confirmation = ""; }
-    private void Select(NavigationEntry entry)
-    {
-        if (Session.ProtectedWorkAllowed && Session.Current is { } staff && entry.Authorities.Any(staff.Allows)) selected = entry;
-    }
     private async Task Logout()
     {
         if (await JS.InvokeAsync<bool>("confirm", "Are you sure you want to log out?")) await Execute(Session.LogoutAsync);

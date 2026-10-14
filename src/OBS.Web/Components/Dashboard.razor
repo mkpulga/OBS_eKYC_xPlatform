@@ -1,0 +1,130 @@
+@using System.Globalization
+
+<div class="dashboard-shell @(dark ? "dashboard-dark" : "") @(collapsed ? "sidebar-collapsed" : "") @(mobileOpen ? "sidebar-mobile-open" : "")">
+    <aside class="dashboard-sidebar" aria-label="Main navigation">
+        <button class="dash-icon-button sidebar-toggle desktop-menu-toggle" @onclick="ToggleSidebar" aria-label="Toggle navigation" aria-expanded="@Pressed(!collapsed)"><DashboardIcon Name="menu" /></button>
+        <button class="dash-icon-button sidebar-toggle mobile-menu-toggle" @onclick="() => mobileOpen = !mobileOpen" aria-label="Toggle navigation" aria-expanded="@Pressed(mobileOpen)"><DashboardIcon Name="menu" /></button>
+        <div class="dash-profile"><span class="dash-avatar">@DashboardPresentation.Initials(Email)</span><div><strong title="@Email">@Email</strong><small>Staff workspace</small></div></div>
+        <nav class="dash-navigation" aria-label="Staff modules">
+            <p class="dash-nav-heading">OVERVIEW</p>
+            <button class="dash-nav-item @(selected is null ? "active" : "")" @onclick="ShowOverview" aria-label="Dashboard" aria-current="@(selected is null ? "page" : null)"><DashboardIcon /><span>Dashboard</span></button>
+            @foreach (var group in Modules.Select(DashboardPresentation.Module).GroupBy(module => module.Group))
+            {
+                <p class="dash-nav-heading">@group.Key</p>
+                @foreach (var module in group)
+                {
+                    <button class="dash-nav-item @(selected == module.Entry ? "active" : "") @group.Key.ToLowerInvariant()" title="@module.Label" aria-label="@module.Label" aria-current="@(selected == module.Entry ? "page" : null)" @onclick="() => Select(module.Entry)"><DashboardIcon Name="@module.Icon" /><span>@module.Label</span></button>
+                }
+            }
+        </nav>
+        <div class="dash-sidebar-bottom">
+            @if (CanChangePassword) { <button class="dash-nav-item compact" @onclick="OnChangePassword" aria-label="Change password"><DashboardIcon Name="lock" /><span>Change password</span></button> }
+            <button class="dash-nav-item compact" @onclick="OnLogout" aria-label="Log out"><DashboardIcon Name="logout" /><span>Log out</span></button>
+            <button class="dash-nav-item compact" @onclick="ToggleTheme" aria-pressed="@Pressed(dark)" aria-label="@(dark ? "Light mode" : "Dark mode")"><DashboardIcon Name="@(dark ? "sun" : "moon")" /><span>@(dark ? "Light mode" : "Dark mode")</span></button>
+        </div>
+    </aside>
+    <div class="dashboard-workspace">
+        <header class="dash-toolbar">
+            <div class="dash-date"><span>@Now.ToString("dddd, dd MMM yyyy", CultureInfo.InvariantCulture)</span><small>@Now.ToString("HH:mm", CultureInfo.InvariantCulture)</small></div>
+            <form class="dash-search" @onsubmit="Search" @onsubmit:preventDefault>
+                <DashboardIcon Name="search" />
+                <label class="sr-only" for="dashboard-search-type">Search by</label>
+                <select id="dashboard-search-type" @bind="searchType"><option>QR Code</option><option>Cardholder</option><option>Reference No.</option></select>
+                <label class="sr-only" for="dashboard-search">Search records</label>
+                <input id="dashboard-search" @bind="query" placeholder="Search records" />
+                <button class="dash-icon-button" type="button" title="Scan QR code" aria-label="Scan QR code" @onclick="ShowScannerNotice"><DashboardIcon Name="qr" /></button>
+                <button class="dash-icon-button" type="submit" title="Search records" aria-label="Search records"><DashboardIcon Name="filter" /></button>
+            </form>
+            <div class="dash-toolbar-actions">
+                <button class="dash-icon-button" @onclick="ShowNotifications" aria-label="Notifications"><DashboardIcon Name="bell" /></button>
+                <button class="dash-icon-button" @onclick="ToggleTheme" aria-label="@(dark ? "Switch to light mode" : "Switch to dark mode")"><DashboardIcon Name="@(dark ? "sun" : "moon")" /></button>
+                <span class="dash-city">@CityName</span>
+            </div>
+        </header>
+        <main class="dash-main" id="main">
+            @if (!string.IsNullOrEmpty(notice) || !string.IsNullOrEmpty(Message))
+            {
+                <div class="dash-notice" role="status">@(string.IsNullOrEmpty(Message) ? notice : Message)<button class="dash-dismiss" @onclick="() => notice = null" aria-label="Dismiss notice" hidden="@(!string.IsNullOrEmpty(Message))">×</button></div>
+            }
+            @if (selected is not null)
+            {
+                <section class="dash-card dash-workflow"><h1>@selected.Title</h1><p>This workflow is not available yet.</p><button class="dash-back" @onclick="ShowOverview">Back to dashboard</button></section>
+            }
+            else
+            {
+                <div class="dash-columns">
+                    <div class="dash-primary-column">
+                        <section class="dash-card dash-portfolio" aria-labelledby="dashboard-title">
+                            <div class="dash-section-heading"><div><h1 id="dashboard-title">Dashboard</h1><p>@CityName · Sample data</p></div><span class="dash-overview"><i></i> OVERVIEW</span></div>
+                            <h2>Overall portfolio</h2>
+                            <div class="dash-metrics">
+                                @foreach (var metric in DashboardSample.Portfolio)
+                                {
+                                    <div class="dash-metric"><span class="dash-icon-tile @metric.Accent"><DashboardIcon Name="@metric.Icon" /></span><div><p>@metric.Label</p><strong>@DashboardSample.Number(metric.Value)</strong></div></div>
+                                }
+                            </div>
+                        </section>
+                        <section class="dash-card dash-activity" aria-labelledby="activity-title">
+                            <div class="dash-section-heading activity-heading"><div><h2 id="activity-title">Activity overview</h2><p>Accounts, KYC and cards processed</p></div>
+                                <div class="dash-periods" role="group" aria-label="Activity period">
+                                    @foreach (var option in DashboardSample.Periods)
+                                    {
+                                        <button class="@(period == option ? "active" : "")" aria-pressed="@Pressed(period == option)" title="@DashboardSample.Description(option)" @onclick="() => period = option">@DashboardSample.Label(option)</button>
+                                    }
+                                </div>
+                            </div>
+                            <div class="dash-legend"><span><i class="mint"></i>Completed</span><span><i class="purple"></i>In progress</span></div>
+                            <div class="dash-chart" role="img" aria-label="@ChartDescription">
+                                <div class="dash-chart-grid" aria-hidden="true">
+                                    @for (var tick = 4; tick >= 0; tick--) { <div><span>@(DashboardSample.AxisMaximum(period) * tick / 4)</span></div> }
+                                </div>
+                                <div class="dash-bars" aria-hidden="true">
+                                    @foreach (var item in DashboardSample.Activity(period))
+                                    {
+                                        <div class="dash-bar-column"><div class="dash-bar-stack" title="@($"{item.Label}: {item.Completed} completed, {item.InProgress} in progress")" style="height:@Percent(item.Completed + item.InProgress)"><div class="dash-bar-progress" style="flex:@item.InProgress"></div><div class="dash-bar-completed" style="flex:@item.Completed"></div></div><span>@item.Label</span></div>
+                                    }
+                                </div>
+                            </div>
+                        </section>
+                    </div>
+                    <div class="dash-secondary-column">
+                        <section class="dash-card dash-release" aria-label="Release progress">
+                            <p>Release progress</p>
+                            <div class="dash-ring"><svg viewBox="0 0 160 160" aria-hidden="true"><circle class="dash-ring-track" cx="80" cy="80" r="69" /><circle class="dash-ring-value" cx="80" cy="80" r="69" pathLength="100" stroke-dasharray="@($"{DashboardSample.ReleasePercent} 100")" transform="rotate(-90 80 80)" /></svg><div><strong>@DashboardSample.ReleasePercent%</strong><small>of requested</small></div></div>
+                        </section>
+                        @foreach (var metric in DashboardSample.Queues)
+                        {
+                            <section class="dash-card dash-queue"><div><span class="dash-icon-tile @metric.Accent"><DashboardIcon Name="@metric.Icon" /></span><h2>@metric.Label</h2></div><strong>@DashboardSample.Number(metric.Value)</strong></section>
+                        }
+                    </div>
+                </div>
+            }
+        </main>
+    </div>
+</div>
+
+@code {
+    [Parameter] public string Email { get; set; } = "";
+    [Parameter] public string CityName { get; set; } = "";
+    [Parameter] public IReadOnlyList<NavigationEntry> Modules { get; set; } = [];
+    [Parameter] public bool CanChangePassword { get; set; }
+    [Parameter] public string Message { get; set; } = "";
+    [Parameter] public EventCallback OnLogout { get; set; }
+    [Parameter] public EventCallback OnChangePassword { get; set; }
+    private DashboardPeriod period = DashboardPeriod.Year;
+    private NavigationEntry? selected;
+    private bool dark, collapsed, mobileOpen;
+    private string searchType = "QR Code", query = "";
+    private string? notice;
+    private DateTimeOffset Now => DashboardPresentation.LocalTime;
+    private static string Pressed(bool value) => value ? "true" : "false";
+    private string Percent(int value) => (100d * value / DashboardSample.AxisMaximum(period)).ToString("0.###", CultureInfo.InvariantCulture) + "%";
+    private string ChartDescription => $"Sample activity, {DashboardSample.Description(period)}. " + string.Join(". ", DashboardSample.Activity(period).Select(item => $"{item.Label}: {item.Completed} completed, {item.InProgress} in progress"));
+    private void ToggleTheme() => dark = !dark;
+    private void ToggleSidebar() => collapsed = !collapsed;
+    private void ShowOverview() { selected = null; notice = null; mobileOpen = false; }
+    private void Select(NavigationEntry entry) { if (Modules.Contains(entry)) { selected = entry; notice = null; mobileOpen = false; } }
+    private void Search() => notice = string.IsNullOrWhiteSpace(query) ? "Enter a value to search." : "Record search is not available yet. This dashboard displays sample data.";
+    private void ShowScannerNotice() => notice = "QR scanning is not available on this dashboard yet.";
+    private void ShowNotifications() => notice = "No notifications to display. This dashboard displays sample data.";
+}

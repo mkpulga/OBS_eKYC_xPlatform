@@ -9,7 +9,6 @@ public sealed partial class MainPage : ContentPage
     private readonly ClientStatus status;
     private readonly CancellationTokenSource stop = new();
     private bool busy, forgot;
-    private string workflowMessage = "";
     private SignInStage renderedStage = (SignInStage)(-1);
     private bool renderedProtected;
 
@@ -24,6 +23,9 @@ public sealed partial class MainPage : ContentPage
         Resources["ThemeText"] = Color.FromArgb(theme.Text);
         ProductNameLabel.Text = theme.ProductName;
         CityNameLabel.Text = theme.CityName;
+        DashboardPanel.Configure(theme);
+        DashboardPanel.LogoutRequested += OnLogoutClicked;
+        DashboardPanel.PasswordChangeRequested += OnOpenPasswordChangeClicked;
 
         session.Changed += Update;
         session.RefreshChecked += TraceRefresh;
@@ -31,6 +33,7 @@ public sealed partial class MainPage : ContentPage
         {
             if (stop.IsCancellationRequested) return false;
             UpdateResendButton();
+            if (DashboardPanel.IsVisible) DashboardPanel.RefreshClock();
             return true;
         });
         _ = RunChecks();
@@ -58,14 +61,12 @@ public sealed partial class MainPage : ContentPage
     private void Render()
     {
         ClearFields();
-        workflowMessage = "";
-        OperatorLabel.Text = "";
-        BindableLayout.SetItemsSource(ModuleList, null);
+        if (session.Current is null) DashboardPanel.SetStaff(null);
         renderedStage = session.Stage;
         renderedProtected = session.ProtectedWorkAllowed;
 
         foreach (var panel in ScreenPanels()) panel.IsVisible = false;
-        DashboardPasswordButton.IsVisible = false;
+        AuthenticationScroll.IsVisible = true;
         ConfigurationMessageLabel.Text = "";
         if (status.ConfigurationError is not null || !session.ContractAvailable)
         {
@@ -91,9 +92,8 @@ public sealed partial class MainPage : ContentPage
                     break;
                 case SignInStage.Protected when session.Current is { } staff:
                     DashboardPanel.IsVisible = true;
-                    OperatorLabel.Text = $"Signed in as {staff.Email}";
-                    BindableLayout.SetItemsSource(ModuleList, OBS.Core.Navigation.For(staff).ToArray());
-                    DashboardPasswordButton.IsVisible = staff.Allows("CPW");
+                    AuthenticationScroll.IsVisible = false;
+                    DashboardPanel.SetStaff(staff);
                     break;
             }
         }
@@ -101,7 +101,7 @@ public sealed partial class MainPage : ContentPage
         UpdateMessage();
     }
 
-    private VerticalStackLayout[] ScreenPanels() => [ConfigurationPanel, LoginPanel, ForgotPasswordPanel, OtpPanel,
+    private View[] ScreenPanels() => [ConfigurationPanel, LoginPanel, ForgotPasswordPanel, OtpPanel,
         PasswordChangePanel, SessionPausedPanel, DashboardPanel];
 
     private void UpdateResendButton()
@@ -113,8 +113,9 @@ public sealed partial class MainPage : ContentPage
 
     private void UpdateMessage()
     {
-        MessageLabel.Text = string.IsNullOrEmpty(session.Message) ? workflowMessage : session.Message;
+        MessageLabel.Text = session.Message;
         MessageLabel.IsVisible = !string.IsNullOrEmpty(MessageLabel.Text);
+        DashboardPanel.SetSessionMessage(session.Message);
     }
 
     private async Task ExecuteAsync(Func<Task> action)
@@ -160,14 +161,6 @@ public sealed partial class MainPage : ContentPage
         Render();
     }
 
-    private void OnModuleClicked(object? sender, EventArgs e)
-    {
-        if (busy || !session.ProtectedWorkAllowed || session.Current is not { } staff ||
-            sender is not Button { CommandParameter: NavigationEntry entry } || !entry.Authorities.Any(staff.Allows)) return;
-        workflowMessage = entry.Title + ": this workflow is blocked pending implementation and contract acceptance tests.";
-        UpdateMessage();
-    }
-
     private void OnOpenPasswordChangeClicked(object? sender, EventArgs e)
     {
         if (!busy && session.ProtectedWorkAllowed) session.BeginPasswordChange();
@@ -195,9 +188,10 @@ public sealed partial class MainPage : ContentPage
         session.Changed -= Update;
         session.RefreshChecked -= TraceRefresh;
         ClearFields();
-        workflowMessage = "";
-        OperatorLabel.Text = MessageLabel.Text = "";
-        BindableLayout.SetItemsSource(ModuleList, null);
+        MessageLabel.Text = "";
+        DashboardPanel.SetStaff(null);
+        DashboardPanel.LogoutRequested -= OnLogoutClicked;
+        DashboardPanel.PasswordChangeRequested -= OnOpenPasswordChangeClicked;
         foreach (var panel in ScreenPanels()) panel.IsVisible = false;
     }
 }
