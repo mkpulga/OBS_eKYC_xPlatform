@@ -1,0 +1,8 @@
+**/bin/
+**/obj/
+.vs/
+*.user
+config/app.ini
+src/OBS.Web/appsettings.Local.json
+artifacts/
+.nuget/

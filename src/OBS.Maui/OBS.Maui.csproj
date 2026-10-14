@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFrameworks>net9.0-windows10.0.19041.0</TargetFrameworks>
+    <TargetFrameworks Condition="'$(EnableAndroidTarget)' == 'true'">$(TargetFrameworks);net9.0-android</TargetFrameworks>
+    <OutputType>Exe</OutputType><RootNamespace>OBS.Maui</RootNamespace>
+    <UseMaui>true</UseMaui><SingleProject>true</SingleProject>
+    <ApplicationTitle>OBS_eKYC</ApplicationTitle><ApplicationId>com.ibayad.obsekyc</ApplicationId>
+    <ApplicationDisplayVersion>0.1.0</ApplicationDisplayVersion><ApplicationVersion>1</ApplicationVersion>
+    <WindowsPackageType>None</WindowsPackageType><MauiVersion>9.0.51</MauiVersion>
+    <SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android'">24.0</SupportedOSPlatformVersion>
+    <SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows'">10.0.17763.0</SupportedOSPlatformVersion>
+    <TargetPlatformMinVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows'">10.0.17763.0</TargetPlatformMinVersion>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)' == 'Debug' and $([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android'">
+    <!-- Include managed code so a debug APK can be copied to a phone without VS fast deployment. -->
+    <EmbedAssembliesIntoApk>true</EmbedAssembliesIntoApk>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Maui.Controls" Version="9.0.51" />
+    <ProjectReference Include="../OBS.Core/OBS.Core.csproj" GlobalPropertiesToRemove="TargetFrameworks" />
+    <EmbeddedResource Include="app.ini" />
+    <EmbeddedResource Include="theme.ini" />
+    <MauiIcon Include="Resources/AppIcon/appicon.svg" Color="#17324D" />
+    <MauiSplashScreen Include="Resources/AppIcon/appicon.svg" Color="#17324D" BaseSize="128,128" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,7 @@
+:root{font-family:Segoe UI,Arial,sans-serif;color:#202B36;background:#F4F6F8;font-size:16px}
+*{box-sizing:border-box}body{margin:0}.app{display:grid;grid-template-columns:270px 1fr;min-height:100vh;color:var(--text);background:var(--background)}
+aside{background:var(--nav);color:white;padding:24px}h1{font-size:24px}h2{font-size:26px;margin-top:0}nav{display:grid;gap:8px}nav button{background:transparent;border:1px solid #ffffff70;color:white;text-align:left}
+main{padding:48px;min-width:0}.panel{background:white;border:1px solid #dbe1e7;border-radius:12px;padding:32px;max-width:1100px}.auth{max-width:480px}
+form{display:grid;gap:12px}input,button{min-height:44px;border:1px solid #687786;border-radius:6px;padding:10px 14px;font:inherit}button{cursor:pointer;background:white;margin-top:8px}.primary{background:var(--action);color:white;border-color:var(--action)}
+button:disabled{opacity:.65;cursor:default}:focus-visible{outline:3px solid #007F82;outline-offset:3px}label{font-weight:600}.message{padding:16px;background:white;border-left:4px solid var(--action);max-width:800px}footer{font-size:14px;margin-top:32px;color:#536170}
+@media(max-width:800px){.app{grid-template-columns:1fr}aside{padding:16px}nav{grid-template-columns:repeat(auto-fit,minmax(180px,1fr))}main{padding:20px}.panel{padding:24px}}

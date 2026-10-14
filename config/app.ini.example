@@ -1,0 +1,8 @@
+[ApiSettings]
+baseUrl=https://configure-your-backend.invalid/obs/api/v1
+apiContract=Refactored
+tokenHeaderKey=X-Obs-Token
+; Obtain the configured header value from the deployment owner. It is not a login credential.
+userAgent=
+[Features]
+featureSet=StandAlone

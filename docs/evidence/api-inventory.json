@@ -1,0 +1,1806 @@
+﻿[
+    {
+        "Folder":  "/session",
+        "Name":  "session-login-otp",
+        "Method":  "POST",
+        "Route":  "session/authenticate",
+        "BodyFields":  [
+                           "username",
+                           "password"
+                       ],
+        "HeaderNames":  [
+                            "Authorization",
+                            "Content-Type",
+                            "module",
+                            "X-Obs-Token"
+                        ],
+        "ResponseExamples":  0,
+        "Historical":  false,
+        "Verification":  "Collection example only; not live verified"
+    },
+    {
+        "Folder":  "/session",
+        "Name":  "session-login",
+        "Method":  "POST",
+        "Route":  "session/authenticate",
+        "BodyFields":  [
+                           "username",
+                           "otp"
+                       ],
+        "HeaderNames":  [
+                            "Authorization",
+                            "Content-Type",
+                            "module",
+                            "X-Obs-Token"
+                        ],
+        "ResponseExamples":  0,
+        "Historical":  false,
+        "Verification":  "Collection example only; not live verified"
+    },
+    {
+        "Folder":  "/session",
+        "Name":  "session-monitor",
+        "Method":  "POST",
+        "Route":  "session/monitor",
+        "BodyFields":  [
+                           "username",
+                           "password",
+                           "otp"
+                       ],
+        "HeaderNames":  [
+                            "Authorization",
+                            "Content-Type",
+                            "module",
+                            "x-obs-token"
+                        ],
+        "ResponseExamples":  0,
+        "Historical":  false,
+        "Verification":  "Collection example only; not live verified"
+    },
+    {
+        "Folder":  "/session",
+        "Name":  "session-terminate",
+        "Method":  "POST",
+        "Route":  "session/terminate",
+        "BodyFields":  [
+                           "username"
+                       ],
+        "HeaderNames":  [
+                            "Authorization",
+                            "Content-Type",
+                            "module",
+                            "token"
+                        ],
+        "ResponseExamples":  0,
+        "Historical":  false,
+        "Verification":  "Collection example only; not live verified"
+    },
+    {
+        "Folder":  "/user/account management",
+        "Name":  "update-user",
+        "Method":  "PUT",
+        "Route":  "user/update",
+        "BodyFields":  [
+                           "email",
+                           "firstname",
+                           "lastname",
+                           "role"
+                       ],
+        "HeaderNames":  [
+                            "Authorization",
+                            "Content-Type",
+                            "x-obs-token"
+                        ],
+        "ResponseExamples":  0,
+        "Historical":  false,
+        "Verification":  "Collection example only; not live verified"
+    },
+    {
+        "Folder":  "/user/account management",
+        "Name":  "change password",
+        "Method":  "POST",
+        "Route":  "user/change/password",
+        "BodyFields":  [
+                           "username",
+                           "currentpassword",
+                           "newpassword"
+                       ],
+        "HeaderNames":  [
+                            "Authorization",
+                            "Content-Type",
+                            "x-obs-token"
+                        ],
+        "ResponseExamples":  0,
+        "Historical":  false,
+        "Verification":  "Collection example only; not live verified"
+    },
+    {
+        "Folder":  "/user/account management",
+        "Name":  "forgot password",
+        "Method":  "POST",
+        "Route":  "user/forgot/password",
+        "BodyFields":  [
+                           "email",
+                           "guiinterface"
+                       ],
+        "HeaderNames":  [
+                            "Authorization",
+                            "Content-Type",
+                            "x-obs-token"
+                        ],
+        "ResponseExamples":  0,
+        "Historical":  false,
+        "Verification":  "Collection example only; not live verified"
+    },
+    {
+        "Folder":  "/user/account management",
+        "Name":  "register-user",
+        "Method":  "POST",
+        "Route":  "user/register",
+        "BodyFields":  [
+                           "email",
+                           "firstname",
+                           "lastname",
+                           "role"
+                       ],
+        "HeaderNames":  [
+                            "Authorization",
+                            "Content-Type",
+                            "x-obs-token"
+                        ],
+        "ResponseExamples":  0,
+        "Historical":  false,
+        "Verification":  "Collection example only; not live verified"
+    },
+    {
+        "Folder":  "/user/account management",
+        "Name":  "users-collection",
+        "Method":  "GET",
+        "Route":  "user",
+        "BodyFields":  [
+
+                       ],
+        "HeaderNames":  [
+                            "Authorization",
+                            "Content-Type",
+                            "x-obs-token"
+                        ],
+        "ResponseExamples":  0,
+        "Historical":  false,
+        "Verification":  "Collection example only; not live verified"
+    },
+    {
+        "Folder":  "/user/account management",
+        "Name":  "delete user",
+        "Method":  "DELETE",
+        "Route":  "user/{identifier}",
+        "BodyFields":  [
+
+                       ],
+        "HeaderNames":  [
+                            "Authorization",
+                            "Content-Type",
+                            "x-obs-token"
+                        ],
+        "ResponseExamples":  0,
+        "Historical":  false,
+        "Verification":  "Collection example only; not live verified"
+    },
+    {
+        "Folder":  "/card holder verification",
+        "Name":  "signup-approve",
+        "Method":  "PUT",
+        "Route":  "cardholder/approve/{identifier}",
+        "BodyFields":  [
+
+                       ],
+        "HeaderNames":  [
+                            "Authorization",
+                            "Content-Type",
+                            "x-obs-token"
+                        ],
+        "ResponseExamples":  0,
+        "Historical":  false,
+        "Verification":  "Collection example only; not live verified"
+    },
+    {
+        "Folder":  "/card holder verification",
+        "Name":  "signup-reject",
+        "Method":  "DELETE",
+        "Route":  "cardholder/reject/{identifier}",
+        "BodyFields":  [
+                           "remarks"
+                       ],
+        "HeaderNames":  [
+                            "Authorization",
+                            "Content-Type",
+                            "token"
+                        ],
+        "ResponseExamples":  0,
+        "Historical":  false,
+        "Verification":  "Collection example only; not live verified"
+    },
+    {
+        "Folder":  "/card holder verification",
+        "Name":  "signup-return",
+        "Method":  "PUT",
+        "Route":  "cardholder/return/{identifier}",
+        "BodyFields":  [
+                           "remarks"
+                       ],
+        "HeaderNames":  [
+                            "Authorization",
+                            "Content-Type",
+                            "x-obs-token"
+                        ],
+        "ResponseExamples":  0,
+        "Historical":  false,
+        "Verification":  "Collection example only; not live verified"
+    },
+    {
+        "Folder":  "/card holder verification",
+        "Name":  "signup-collection-forapproval",
+        "Method":  "GET",
+        "Route":  "cardholder/pending",
+        "BodyFields":  [
+
+                       ],
+        "HeaderNames":  [
+                            "Authorization",
+                            "Content-Type",
+                            "x-obs-token"
+                        ],
+        "ResponseExamples":  0,
+        "Historical":  false,
+        "Verification":  "Collection example only; not live verified"
+    },
+    {
+        "Folder":  "/card holder verification",
+        "Name":  "signup-specific-collection-forapproval",
+        "Method":  "GET",
+        "Route":  "cardholder/pending/{identifier}",
+        "BodyFields":  [
+
+                       ],
+        "HeaderNames":  [
+                            "Authorization",
+                            "Content-Type",
+                            "x-obs-token"
+                        ],
+        "ResponseExamples":  0,
+        "Historical":  false,
+        "Verification":  "Collection example only; not live verified"
+    },
+    {
+        "Folder":  "/residence verification",
+        "Name":  "residence-verification-collection",
+        "Method":  "GET",
+        "Route":  "residence/verification",
+        "BodyFields":  [
+
+                       ],
+        "HeaderNames":  [
+                            "Accept",
+                            "Authorization",
+                            "Content-Type",
+                            "x-obs-token"
+                        ],
+        "ResponseExamples":  0,
+        "Historical":  false,
+        "Verification":  "Collection example only; not live verified"
+    },
+    {
+        "Folder":  "/residence verification",
+        "Name":  "residence-verification-specific-collection",
+        "Method":  "GET",
+        "Route":  "residence/verification/{identifier}",
+        "BodyFields":  [
+
+                       ],
+        "HeaderNames":  [
+                            "Authorization",
+                            "Content-Type",
+                            "x-obs-token"
+                        ],
+        "ResponseExamples":  0,
+        "Historical":  false,
+        "Verification":  "Collection example only; not live verified"
+    },
+    {
+        "Folder":  "/residence status",
+        "Name":  "residence-status-collection",
+        "Method":  "GET",
+        "Route":  "residence/status",
+        "BodyFields":  [
+
+                       ],
+        "HeaderNames":  [
+                            "Authorization",
+                            "Content-Type",
+                            "x-obs-token"
+                        ],
+        "ResponseExamples":  0,
+        "Historical":  false,
+        "Verification":  "Collection example only; not live verified"
+    },
+    {
+        "Folder":  "/residence status",
+        "Name":  "residence-status-specific-collection",
+        "Method":  "GET",
+        "Route":  "residence/status/{identifier}",
+        "BodyFields":  [
+                           "email",
+                           "firstname",
+                           "lastname",
+                           "role"
+                       ],
+        "HeaderNames":  [
+                            "Authorization",
+                            "Content-Type",
+                            "x-obs-token"
+                        ],
+        "ResponseExamples":  0,
+        "Historical":  false,
+        "Verification":  "Collection example only; not live verified"
+    },
+    {
+        "Folder":  "/residence status",
+        "Name":  "residence-status-approve",
+        "Method":  "PUT",
+        "Route":  "residence/status/approve/{identifier}",
+        "BodyFields":  [
+
+                       ],
+        "HeaderNames":  [
+                            "Content-Type",
+                            "token",
+                            "User-Agent"
+                        ],
+        "ResponseExamples":  0,
+        "Historical":  false,
+        "Verification":  "Collection example only; not live verified"
+    },
+    {
+        "Folder":  "/residence status",
+        "Name":  "residence-status-revisit",
+        "Method":  "PUT",
+        "Route":  "residence/status/revisit/{identifier}",
+        "BodyFields":  [
+                           "remarks"
+                       ],
+        "HeaderNames":  [
+                            "Authorization",
+                            "Content-Type",
+                            "token"
+                        ],
+        "ResponseExamples":  0,
+        "Historical":  false,
+        "Verification":  "Collection example only; not live verified"
+    },
+    {
+        "Folder":  "/residence status",
+        "Name":  "residence-status-reject",
+        "Method":  "DELETE",
+        "Route":  "residence/status/reject/{identifier}",
+        "BodyFields":  [
+                           "remarks"
+                       ],
+        "HeaderNames":  [
+                            "Authorization",
+                            "Content-Type",
+                            "x-obs-token"
+                        ],
+        "ResponseExamples":  0,
+        "Historical":  false,
+        "Verification":  "Collection example only; not live verified"
+    },
+    {
+        "Folder":  "/initial kyc validation",
+        "Name":  "initial-kyc-validation-collection",
+        "Method":  "GET",
+        "Route":  "initial/kyc/validation",
+        "BodyFields":  [
+
+                       ],
+        "HeaderNames":  [
+                            "Authorization",
+                            "Content-Type",
+                            "x-obs-token"
+                        ],
+        "ResponseExamples":  0,
+        "Historical":  false,
+        "Verification":  "Collection example only; not live verified"
+    },
+    {
+        "Folder":  "/initial kyc result",
+        "Name":  "initial-kyc-result-collection",
+        "Method":  "GET",
+        "Route":  "initial/kyc/result",
+        "BodyFields":  [
+
+                       ],
+        "HeaderNames":  [
+                            "Authorization",
+                            "Content-Type",
+                            "x-obs-token"
+                        ],
+        "ResponseExamples":  0,
+        "Historical":  false,
+        "Verification":  "Collection example only; not live verified"
+    },
+    {
+        "Folder":  "/initial kyc result",
+        "Name":  "initial-kyc-result-upload",
+        "Method":  "POST",
+        "Route":  "initial/kyc/result",
+        "BodyFields":  [
+                           "base64",
+                           "filename"
+                       ],
+        "HeaderNames":  [
+                            "Authorization",
+                            "Content-Type",
+                            "x-obs-token"
+                        ],
+        "ResponseExamples":  0,
+        "Historical":  false,
+        "Verification":  "Collection example only; not live verified"
+    },
+    {
+        "Folder":  "/ors - disregard",
+        "Name":  "signup-contactinfo",
+        "Method":  "POST",
+        "Route":  "api/v1/citizen/contactInformation",
+        "BodyFields":  [
+                           "referencenumber",
+                           "email",
+                           "msisdn",
+                           "contactinformation"
+                       ],
+        "HeaderNames":  [
+                            "Authorization",
+                            "Content-Type",
+                            "User-Agent"
+                        ],
+        "ResponseExamples":  0,
+        "Historical":  true,
+        "Verification":  "Collection example only; not live verified"
+    },
+    {
+        "Folder":  "/ors - disregard",
+        "Name":  "signup-primaryinfo",
+        "Method":  "POST",
+        "Route":  "api/v1/citizen/personalInformation",
+        "BodyFields":  [
+                           "referencenumber",
+                           "personalinformation"
+                       ],
+        "HeaderNames":  [
+                            "Authorization",
+                            "Content-Type",
+                            "User-Agent"
+                        ],
+        "ResponseExamples":  0,
+        "Historical":  true,
+        "Verification":  "Collection example only; not live verified"
+    },
+    {
+        "Folder":  "/ors - disregard",
+        "Name":  "signup-address",
+        "Method":  "POST",
+        "Route":  "api/v1/citizen/addressInformation",
+        "BodyFields":  [
+                           "referencenumber",
+                           "address"
+                       ],
+        "HeaderNames":  [
+                            "Authorization",
+                            "Content-Type",
+                            "User-Agent"
+                        ],
+        "ResponseExamples":  0,
+        "Historical":  true,
+        "Verification":  "Collection example only; not live verified"
+    },
+    {
+        "Folder":  "/ors - disregard",
+        "Name":  "signup-emergencycontact",
+        "Method":  "POST",
+        "Route":  "api/v1/citizen/emergencyContactInformation",
+        "BodyFields":  [
+                           "referencenumber",
+                           "emergencycontactdetails"
+                       ],
+        "HeaderNames":  [
+                            "Authorization",
+                            "Content-Type",
+                            "User-Agent"
+                        ],
+        "ResponseExamples":  0,
+        "Historical":  true,
+        "Verification":  "Collection example only; not live verified"
+    },
+    {
+        "Folder":  "/ors - disregard",
+        "Name":  "signup-specimen",
+        "Method":  "POST",
+        "Route":  "api/v1/citizen/specimen",
+        "BodyFields":  [
+                           "referencenumber",
+                           "photoinformation"
+                       ],
+        "HeaderNames":  [
+                            "Authorization",
+                            "Content-Type",
+                            "User-Agent"
+                        ],
+        "ResponseExamples":  0,
+        "Historical":  true,
+        "Verification":  "Collection example only; not live verified"
+    },
+    {
+        "Folder":  "/ors - disregard",
+        "Name":  "signup-additionalrequirements",
+        "Method":  "POST",
+        "Route":  "api/v1/citizen/additionalRequirements",
+        "BodyFields":  [
+                           "referencenumber",
+                           "additionalrequirements"
+                       ],
+        "HeaderNames":  [
+                            "Authorization",
+                            "Content-Type",
+                            "User-Agent"
+                        ],
+        "ResponseExamples":  0,
+        "Historical":  true,
+        "Verification":  "Collection example only; not live verified"
+    },
+    {
+        "Folder":  "/ors - disregard",
+        "Name":  "signup-educationalattaiment",
+        "Method":  "POST",
+        "Route":  "api/v1/citizen/educationalInformation",
+        "BodyFields":  [
+                           "referencenumber",
+                           "educationalinformation"
+                       ],
+        "HeaderNames":  [
+                            "Authorization",
+                            "Content-Type",
+                            "User-Agent"
+                        ],
+        "ResponseExamples":  0,
+        "Historical":  true,
+        "Verification":  "Collection example only; not live verified"
+    },
+    {
+        "Folder":  "/ors - disregard",
+        "Name":  "signup-id",
+        "Method":  "POST",
+        "Route":  "api/v1/citizen/identificationDetails",
+        "BodyFields":  [
+                           "referencenumber",
+                           "identificationdetails"
+                       ],
+        "HeaderNames":  [
+                            "Authorization",
+                            "Content-Type",
+                            "User-Agent"
+                        ],
+        "ResponseExamples":  0,
+        "Historical":  true,
+        "Verification":  "Collection example only; not live verified"
+    },
+    {
+        "Folder":  "/ors - disregard",
+        "Name":  "signup-pre register",
+        "Method":  "PUT",
+        "Route":  "api/v1/citizen/preregister/{identifier}",
+        "BodyFields":  [
+                           "referencenumber",
+                           "identificationdetails"
+                       ],
+        "HeaderNames":  [
+                            "Authorization",
+                            "Content-Type",
+                            "User-Agent"
+                        ],
+        "ResponseExamples":  0,
+        "Historical":  true,
+        "Verification":  "Collection example only; not live verified"
+    },
+    {
+        "Folder":  "/role",
+        "Name":  "new-role",
+        "Method":  "POST",
+        "Route":  "role/create",
+        "BodyFields":  [
+                           "role",
+                           "guiinterface"
+                       ],
+        "HeaderNames":  [
+                            "Authorization",
+                            "Content-Type",
+                            "User-Agent"
+                        ],
+        "ResponseExamples":  0,
+        "Historical":  false,
+        "Verification":  "Collection example only; not live verified"
+    },
+    {
+        "Folder":  "/role",
+        "Name":  "modules",
+        "Method":  "GET",
+        "Route":  "modules",
+        "BodyFields":  [
+
+                       ],
+        "HeaderNames":  [
+                            "Authorization",
+                            "Content-Type",
+                            "x-obs-token"
+                        ],
+        "ResponseExamples":  0,
+        "Historical":  false,
+        "Verification":  "Collection example only; not live verified"
+    },
+    {
+        "Folder":  "/role",
+        "Name":  "update-role",
+        "Method":  "PUT",
+        "Route":  "role/{identifier}",
+        "BodyFields":  [
+                           "status",
+                           "guiinterface",
+                           "homepage",
+                           "module"
+                       ],
+        "HeaderNames":  [
+                            "Authorization",
+                            "Content-Type",
+                            "x-obs-token"
+                        ],
+        "ResponseExamples":  0,
+        "Historical":  false,
+        "Verification":  "Collection example only; not live verified"
+    },
+    {
+        "Folder":  "/role",
+        "Name":  "getallroles",
+        "Method":  "GET",
+        "Route":  "role",
+        "BodyFields":  [
+
+                       ],
+        "HeaderNames":  [
+                            "Authorization",
+                            "Content-Type",
+                            "x-obs-token"
+                        ],
+        "ResponseExamples":  0,
+        "Historical":  false,
+        "Verification":  "Collection example only; not live verified"
+    },
+    {
+        "Folder":  "/role",
+        "Name":  "module per admin",
+        "Method":  "GET",
+        "Route":  "modules/admin",
+        "BodyFields":  [
+
+                       ],
+        "HeaderNames":  [
+                            "Authorization",
+                            "Content-Type",
+                            "x-obs-token"
+                        ],
+        "ResponseExamples":  0,
+        "Historical":  false,
+        "Verification":  "Collection example only; not live verified"
+    },
+    {
+        "Folder":  "/documents",
+        "Name":  "update documents",
+        "Method":  "PUT",
+        "Route":  "documents/{identifier}",
+        "BodyFields":  [
+                           "docvalue",
+                           "remarks",
+                           "filename",
+                           "doctype",
+                           "isdirect"
+                       ],
+        "HeaderNames":  [
+                            "Authorization",
+                            "Content-Type",
+                            "x-obs-token"
+                        ],
+        "ResponseExamples":  0,
+        "Historical":  false,
+        "Verification":  "Collection example only; not live verified"
+    },
+    {
+        "Folder":  "/documents",
+        "Name":  "upload pending documents",
+        "Method":  "PUT",
+        "Route":  "documents/pending/{identifier}",
+        "BodyFields":  [
+                           "docvalue",
+                           "filename",
+                           "doctype",
+                           "isdirect"
+                       ],
+        "HeaderNames":  [
+                            "Authorization",
+                            "Content-Type",
+                            "User-Agent"
+                        ],
+        "ResponseExamples":  0,
+        "Historical":  false,
+        "Verification":  "Collection example only; not live verified"
+    },
+    {
+        "Folder":  "/documents",
+        "Name":  "documents collection",
+        "Method":  "GET",
+        "Route":  "documents/{identifier}/Signature",
+        "BodyFields":  [
+
+                       ],
+        "HeaderNames":  [
+                            "Authorization",
+                            "Content-Type",
+                            "x-obs-token"
+                        ],
+        "ResponseExamples":  0,
+        "Historical":  false,
+        "Verification":  "Collection example only; not live verified"
+    },
+    {
+        "Folder":  "/documents",
+        "Name":  "documents collection redis",
+        "Method":  "GET",
+        "Route":  "documents/redis/{identifier}/R1",
+        "BodyFields":  [
+                           "remarks"
+                       ],
+        "HeaderNames":  [
+                            "Authorization",
+                            "Content-Type",
+                            "token"
+                        ],
+        "ResponseExamples":  0,
+        "Historical":  false,
+        "Verification":  "Collection example only; not live verified"
+    },
+    {
+        "Folder":  "/documents",
+        "Name":  "get pending documents",
+        "Method":  "GET",
+        "Route":  "documents/pending/{identifier}/all",
+        "BodyFields":  [
+
+                       ],
+        "HeaderNames":  [
+                            "Authorization",
+                            "Content-Type",
+                            "x-obs-token"
+                        ],
+        "ResponseExamples":  0,
+        "Historical":  false,
+        "Verification":  "Collection example only; not live verified"
+    },
+    {
+        "Folder":  "/documents",
+        "Name":  "getdoctype",
+        "Method":  "GET",
+        "Route":  "documents/doctype/{identifier}",
+        "BodyFields":  [
+
+                       ],
+        "HeaderNames":  [
+                            "Authorization",
+                            "Content-Type",
+                            "token"
+                        ],
+        "ResponseExamples":  0,
+        "Historical":  false,
+        "Verification":  "Collection example only; not live verified"
+    },
+    {
+        "Folder":  "/biometrics",
+        "Name":  "update biometrics",
+        "Method":  "PUT",
+        "Route":  "documents/{identifier}",
+        "BodyFields":  [
+                           "docvalue",
+                           "filename",
+                           "doctype",
+                           "isdirect"
+                       ],
+        "HeaderNames":  [
+                            "Authorization",
+                            "Content-Type",
+                            "x-obs-token"
+                        ],
+        "ResponseExamples":  0,
+        "Historical":  false,
+        "Verification":  "Collection example only; not live verified"
+    },
+    {
+        "Folder":  "/biometrics",
+        "Name":  "biometrics collection",
+        "Method":  "GET",
+        "Route":  "biometrics/{identifier}/all",
+        "BodyFields":  [
+
+                       ],
+        "HeaderNames":  [
+                            "Authorization",
+                            "Content-Type",
+                            "x-obs-token"
+                        ],
+        "ResponseExamples":  0,
+        "Historical":  false,
+        "Verification":  "Collection example only; not live verified"
+    },
+    {
+        "Folder":  "/information gathering",
+        "Name":  "information gathering collection",
+        "Method":  "GET",
+        "Route":  "information/gathering",
+        "BodyFields":  [
+
+                       ],
+        "HeaderNames":  [
+                            "Authorization",
+                            "Content-Type",
+                            "x-obs-token"
+                        ],
+        "ResponseExamples":  0,
+        "Historical":  false,
+        "Verification":  "Collection example only; not live verified"
+    },
+    {
+        "Folder":  "/information gathering",
+        "Name":  "information gathering specific",
+        "Method":  "GET",
+        "Route":  "information/gathering/{identifier}",
+        "BodyFields":  [
+
+                       ],
+        "HeaderNames":  [
+                            "Authorization",
+                            "Content-Type",
+                            "x-obs-token"
+                        ],
+        "ResponseExamples":  0,
+        "Historical":  false,
+        "Verification":  "Collection example only; not live verified"
+    },
+    {
+        "Folder":  "/information gathering",
+        "Name":  "update personal info",
+        "Method":  "PUT",
+        "Route":  "information/gathering/personal/{identifier}",
+        "BodyFields":  [
+                           "accounttype",
+                           "firstname",
+                           "middlename",
+                           "lastname",
+                           "suffix",
+                           "displayname",
+                           "gender",
+                           "dateofbirth",
+                           "placeofbirthprovince",
+                           "placeofbirthcity",
+                           "placeofbirthcountry",
+                           "civilstatus",
+                           "nationality",
+                           "bloodtype",
+                           "natureofwork",
+                           "sourceofincome",
+                           "tenurialstatus",
+                           "department",
+                           "sbrid"
+                       ],
+        "HeaderNames":  [
+                            "Authorization",
+                            "Content-Type",
+                            "x-obs-token"
+                        ],
+        "ResponseExamples":  0,
+        "Historical":  false,
+        "Verification":  "Collection example only; not live verified"
+    },
+    {
+        "Folder":  "/information gathering",
+        "Name":  "update contact",
+        "Method":  "PUT",
+        "Route":  "information/gathering/contact/{identifier}",
+        "BodyFields":  [
+                           "contacts"
+                       ],
+        "HeaderNames":  [
+                            "Authorization",
+                            "Content-Type",
+                            "token"
+                        ],
+        "ResponseExamples":  0,
+        "Historical":  false,
+        "Verification":  "Collection example only; not live verified"
+    },
+    {
+        "Folder":  "/information gathering",
+        "Name":  "update address",
+        "Method":  "PUT",
+        "Route":  "information/gathering/address/{identifier}",
+        "BodyFields":  [
+                           "address"
+                       ],
+        "HeaderNames":  [
+                            "Authorization",
+                            "Content-Type",
+                            "x-obs-token"
+                        ],
+        "ResponseExamples":  0,
+        "Historical":  false,
+        "Verification":  "Collection example only; not live verified"
+    },
+    {
+        "Folder":  "/information gathering",
+        "Name":  "update emergency",
+        "Method":  "PUT",
+        "Route":  "information/gathering/emergency/{identifier}",
+        "BodyFields":  [
+                           "firstname",
+                           "middlename",
+                           "lastname",
+                           "suffix",
+                           "contactnumber",
+                           "relationship",
+                           "address"
+                       ],
+        "HeaderNames":  [
+                            "Authorization",
+                            "Content-Type",
+                            "x-obs-token"
+                        ],
+        "ResponseExamples":  0,
+        "Historical":  false,
+        "Verification":  "Collection example only; not live verified"
+    },
+    {
+        "Folder":  "/information gathering",
+        "Name":  "update identity",
+        "Method":  "PUT",
+        "Route":  "information/gathering/identification/{identifier}",
+        "BodyFields":  [
+                           "type",
+                           "number",
+                           "doctype"
+                       ],
+        "HeaderNames":  [
+                            "Authorization",
+                            "Content-Type",
+                            "token"
+                        ],
+        "ResponseExamples":  0,
+        "Historical":  false,
+        "Verification":  "Collection example only; not live verified"
+    },
+    {
+        "Folder":  "/information gathering",
+        "Name":  "update education",
+        "Method":  "PUT",
+        "Route":  "information/gathering/education/{identifier}",
+        "BodyFields":  [
+                           "school",
+                           "course",
+                           "educationalattainment"
+                       ],
+        "HeaderNames":  [
+                            "Authorization",
+                            "Content-Type",
+                            "User-Agent"
+                        ],
+        "ResponseExamples":  0,
+        "Historical":  false,
+        "Verification":  "Collection example only; not live verified"
+    },
+    {
+        "Folder":  "/information gathering",
+        "Name":  "update additional requirements",
+        "Method":  "PUT",
+        "Route":  "information/gathering/additional/{identifier}",
+        "BodyFields":  [
+                           "doctype"
+                       ],
+        "HeaderNames":  [
+                            "Authorization",
+                            "Content-Type",
+                            "User-Agent"
+                        ],
+        "ResponseExamples":  0,
+        "Historical":  false,
+        "Verification":  "Collection example only; not live verified"
+    },
+    {
+        "Folder":  "/information gathering",
+        "Name":  "update icao",
+        "Method":  "PUT",
+        "Route":  "information/gathering/icao/{identifier}",
+        "BodyFields":  [
+                           "docvalue",
+                           "filename",
+                           "doctype",
+                           "isdirect"
+                       ],
+        "HeaderNames":  [
+                            "Authorization",
+                            "Content-Type",
+                            "x-obs-token"
+                        ],
+        "ResponseExamples":  0,
+        "Historical":  false,
+        "Verification":  "Collection example only; not live verified"
+    },
+    {
+        "Folder":  "/information gathering",
+        "Name":  "update signature",
+        "Method":  "PUT",
+        "Route":  "information/gathering/signature/{identifier}",
+        "BodyFields":  [
+                           "docvalue",
+                           "filename",
+                           "doctype",
+                           "isdirect",
+                           "remarks"
+                       ],
+        "HeaderNames":  [
+                            "Authorization",
+                            "Content-Type",
+                            "x-obs-token"
+                        ],
+        "ResponseExamples":  0,
+        "Historical":  false,
+        "Verification":  "Collection example only; not live verified"
+    },
+    {
+        "Folder":  "/information gathering",
+        "Name":  "update biometrics",
+        "Method":  "PUT",
+        "Route":  "information/gathering/biometrics/{identifier}",
+        "BodyFields":  [
+                           "doctype",
+                           "remarks"
+                       ],
+        "HeaderNames":  [
+                            "Authorization",
+                            "Content-Type",
+                            "x-obs-token"
+                        ],
+        "ResponseExamples":  0,
+        "Historical":  false,
+        "Verification":  "Collection example only; not live verified"
+    },
+    {
+        "Folder":  "/information gathering",
+        "Name":  "for printing",
+        "Method":  "PUT",
+        "Route":  "information/gathering/forprinting/{identifier}",
+        "BodyFields":  [
+
+                       ],
+        "HeaderNames":  [
+                            "Authorization",
+                            "Content-Type",
+                            "token"
+                        ],
+        "ResponseExamples":  0,
+        "Historical":  false,
+        "Verification":  "Collection example only; not live verified"
+    },
+    {
+        "Folder":  "/information gathering",
+        "Name":  "for initial kyc",
+        "Method":  "PUT",
+        "Route":  "information/gathering/forinitialkyc/{identifier}",
+        "BodyFields":  [
+
+                       ],
+        "HeaderNames":  [
+                            "Authorization",
+                            "Content-Type",
+                            "token"
+                        ],
+        "ResponseExamples":  0,
+        "Historical":  false,
+        "Verification":  "Collection example only; not live verified"
+    },
+    {
+        "Folder":  "/cardholder update",
+        "Name":  "cardholder update collection",
+        "Method":  "GET",
+        "Route":  "cardholder/update",
+        "BodyFields":  [
+
+                       ],
+        "HeaderNames":  [
+                            "Authorization",
+                            "Content-Type",
+                            "x-obs-token"
+                        ],
+        "ResponseExamples":  0,
+        "Historical":  false,
+        "Verification":  "Collection example only; not live verified"
+    },
+    {
+        "Folder":  "/cardholder update",
+        "Name":  "card holder update specific collection",
+        "Method":  "GET",
+        "Route":  "cardholder/update/{identifier}",
+        "BodyFields":  [
+
+                       ],
+        "HeaderNames":  [
+                            "Authorization",
+                            "Content-Type",
+                            "x-obs-token"
+                        ],
+        "ResponseExamples":  0,
+        "Historical":  false,
+        "Verification":  "Collection example only; not live verified"
+    },
+    {
+        "Folder":  "/cardholder update",
+        "Name":  "update personal info",
+        "Method":  "PUT",
+        "Route":  "cardholder/update/personal/{identifier}",
+        "BodyFields":  [
+                           "accounttype",
+                           "firstname",
+                           "middlename",
+                           "lastname",
+                           "suffix",
+                           "displayname",
+                           "gender",
+                           "dateofbirth",
+                           "placeofbirthprovince",
+                           "placeofbirthcity",
+                           "placeofbirthcountry",
+                           "civilstatus",
+                           "nationality",
+                           "bloodtype",
+                           "natureofwork",
+                           "sourceofincome",
+                           "tenurialstatus",
+                           "department",
+                           "sbrid",
+                           "remarks"
+                       ],
+        "HeaderNames":  [
+                            "Authorization",
+                            "Content-Type",
+                            "x-obs-token"
+                        ],
+        "ResponseExamples":  0,
+        "Historical":  false,
+        "Verification":  "Collection example only; not live verified"
+    },
+    {
+        "Folder":  "/cardholder update",
+        "Name":  "update contact",
+        "Method":  "PUT",
+        "Route":  "cardholder/update/contact/{identifier}",
+        "BodyFields":  [
+                           "contacts"
+                       ],
+        "HeaderNames":  [
+                            "Authorization",
+                            "Content-Type",
+                            "x-obs-token"
+                        ],
+        "ResponseExamples":  0,
+        "Historical":  false,
+        "Verification":  "Collection example only; not live verified"
+    },
+    {
+        "Folder":  "/cardholder update",
+        "Name":  "update address",
+        "Method":  "PUT",
+        "Route":  "cardholder/update/address/{identifier}",
+        "BodyFields":  [
+                           "present",
+                           "permanent"
+                       ],
+        "HeaderNames":  [
+                            "Authorization",
+                            "Content-Type",
+                            "User-Agent"
+                        ],
+        "ResponseExamples":  0,
+        "Historical":  false,
+        "Verification":  "Collection example only; not live verified"
+    },
+    {
+        "Folder":  "/cardholder update",
+        "Name":  "update emergency",
+        "Method":  "PUT",
+        "Route":  "cardholder/update/emergency/{identifier}",
+        "BodyFields":  [
+                           "firstname",
+                           "middlename",
+                           "lastname",
+                           "suffix",
+                           "contactnumber",
+                           "relationship",
+                           "address"
+                       ],
+        "HeaderNames":  [
+                            "Authorization",
+                            "Content-Type",
+                            "User-Agent"
+                        ],
+        "ResponseExamples":  0,
+        "Historical":  false,
+        "Verification":  "Collection example only; not live verified"
+    },
+    {
+        "Folder":  "/cardholder update",
+        "Name":  "update identity",
+        "Method":  "PUT",
+        "Route":  "cardholder/update/identification/{identifier}",
+        "BodyFields":  [
+                           "type",
+                           "number",
+                           "doctype"
+                       ],
+        "HeaderNames":  [
+                            "Authorization",
+                            "Content-Type",
+                            "User-Agent"
+                        ],
+        "ResponseExamples":  0,
+        "Historical":  false,
+        "Verification":  "Collection example only; not live verified"
+    },
+    {
+        "Folder":  "/cardholder update",
+        "Name":  "update education",
+        "Method":  "PUT",
+        "Route":  "cardholder/update/education/{identifier}",
+        "BodyFields":  [
+                           "school",
+                           "course",
+                           "educationalattainment"
+                       ],
+        "HeaderNames":  [
+                            "Authorization",
+                            "Content-Type",
+                            "User-Agent"
+                        ],
+        "ResponseExamples":  0,
+        "Historical":  false,
+        "Verification":  "Collection example only; not live verified"
+    },
+    {
+        "Folder":  "/cardholder update",
+        "Name":  "update additional requirements",
+        "Method":  "PUT",
+        "Route":  "cardholder/update/additional/{identifier}",
+        "BodyFields":  [
+                           "doctype"
+                       ],
+        "HeaderNames":  [
+                            "Authorization",
+                            "Content-Type",
+                            "User-Agent"
+                        ],
+        "ResponseExamples":  0,
+        "Historical":  false,
+        "Verification":  "Collection example only; not live verified"
+    },
+    {
+        "Folder":  "/cardholder update",
+        "Name":  "update icao",
+        "Method":  "PUT",
+        "Route":  "cardholder/update/icao/{identifier}",
+        "BodyFields":  [
+                           "docvalue",
+                           "filename",
+                           "doctype",
+                           "isdirect"
+                       ],
+        "HeaderNames":  [
+                            "Authorization",
+                            "Content-Type",
+                            "User-Agent"
+                        ],
+        "ResponseExamples":  0,
+        "Historical":  false,
+        "Verification":  "Collection example only; not live verified"
+    },
+    {
+        "Folder":  "/cardholder update",
+        "Name":  "update signature",
+        "Method":  "PUT",
+        "Route":  "cardholder/update/signature/{identifier}",
+        "BodyFields":  [
+                           "docvalue",
+                           "filename",
+                           "doctype",
+                           "isdirect",
+                           "remarks"
+                       ],
+        "HeaderNames":  [
+                            "Authorization",
+                            "Content-Type",
+                            "x-obs-token"
+                        ],
+        "ResponseExamples":  0,
+        "Historical":  false,
+        "Verification":  "Collection example only; not live verified"
+    },
+    {
+        "Folder":  "/cardholder update",
+        "Name":  "update biometrics",
+        "Method":  "PUT",
+        "Route":  "cardholder/update/biometrics/{identifier}",
+        "BodyFields":  [
+                           "doctype"
+                       ],
+        "HeaderNames":  [
+                            "Authorization",
+                            "Content-Type",
+                            "User-Agent"
+                        ],
+        "ResponseExamples":  0,
+        "Historical":  false,
+        "Verification":  "Collection example only; not live verified"
+    },
+    {
+        "Folder":  "/cardholder update",
+        "Name":  "for printing",
+        "Method":  "PUT",
+        "Route":  "cardholder/update/forprinting/{identifier}/{identifier}",
+        "BodyFields":  [
+
+                       ],
+        "HeaderNames":  [
+                            "Authorization",
+                            "Content-Type",
+                            "x-obs-token"
+                        ],
+        "ResponseExamples":  0,
+        "Historical":  false,
+        "Verification":  "Collection example only; not live verified"
+    },
+    {
+        "Folder":  "/cardholder update",
+        "Name":  "for initial kyc",
+        "Method":  "PUT",
+        "Route":  "cardholder/update/forinitialkyc/{identifier}",
+        "BodyFields":  [
+
+                       ],
+        "HeaderNames":  [
+                            "Authorization",
+                            "Content-Type",
+                            "x-obs-token"
+                        ],
+        "ResponseExamples":  0,
+        "Historical":  false,
+        "Verification":  "Collection example only; not live verified"
+    },
+    {
+        "Folder":  "/cardholder for printing",
+        "Name":  "cardholder update collection Copy",
+        "Method":  "GET",
+        "Route":  "cardholder/forprinting",
+        "BodyFields":  [
+
+                       ],
+        "HeaderNames":  [
+                            "Authorization",
+                            "Content-Type",
+                            "x-obs-token"
+                        ],
+        "ResponseExamples":  0,
+        "Historical":  false,
+        "Verification":  "Collection example only; not live verified"
+    },
+    {
+        "Folder":  "/cardholder for printing",
+        "Name":  "card holder update specific collection Copy",
+        "Method":  "GET",
+        "Route":  "cardholder/forprinting/{identifier}",
+        "BodyFields":  [
+
+                       ],
+        "HeaderNames":  [
+                            "Authorization",
+                            "Content-Type",
+                            "x-obs-token"
+                        ],
+        "ResponseExamples":  0,
+        "Historical":  false,
+        "Verification":  "Collection example only; not live verified"
+    },
+    {
+        "Folder":  "/cardholder printed result",
+        "Name":  "update cardholder printed result",
+        "Method":  "POST",
+        "Route":  "cardholder/printed/result",
+        "BodyFields":  [
+                           "base64",
+                           "filename"
+                       ],
+        "HeaderNames":  [
+                            "Authorization",
+                            "Content-Type",
+                            "x-obs-token"
+                        ],
+        "ResponseExamples":  0,
+        "Historical":  false,
+        "Verification":  "Collection example only; not live verified"
+    },
+    {
+        "Folder":  "/cardholder printed result",
+        "Name":  "getprintedresult",
+        "Method":  "GET",
+        "Route":  "cardholder/printed/result",
+        "BodyFields":  [
+
+                       ],
+        "HeaderNames":  [
+                            "Authorization",
+                            "Content-Type",
+                            "x-obs-token"
+                        ],
+        "ResponseExamples":  0,
+        "Historical":  false,
+        "Verification":  "Collection example only; not live verified"
+    },
+    {
+        "Folder":  "/unprinted id",
+        "Name":  "unprinted id collection",
+        "Method":  "GET",
+        "Route":  "unprinted/id",
+        "BodyFields":  [
+
+                       ],
+        "HeaderNames":  [
+                            "Authorization",
+                            "Content-Type",
+                            "x-obs-token"
+                        ],
+        "ResponseExamples":  0,
+        "Historical":  false,
+        "Verification":  "Collection example only; not live verified"
+    },
+    {
+        "Folder":  "/unprinted id",
+        "Name":  "unprinted id specific collection",
+        "Method":  "GET",
+        "Route":  "unprinted/id/{identifier}",
+        "BodyFields":  [
+
+                       ],
+        "HeaderNames":  [
+                            "Authorization",
+                            "Content-Type",
+                            "x-obs-token"
+                        ],
+        "ResponseExamples":  0,
+        "Historical":  false,
+        "Verification":  "Collection example only; not live verified"
+    },
+    {
+        "Folder":  "/unclaimed id",
+        "Name":  "unclaimed id collection",
+        "Method":  "GET",
+        "Route":  "unclaimed/id",
+        "BodyFields":  [
+
+                       ],
+        "HeaderNames":  [
+                            "Authorization",
+                            "Content-Type",
+                            "x-obs-token"
+                        ],
+        "ResponseExamples":  0,
+        "Historical":  false,
+        "Verification":  "Collection example only; not live verified"
+    },
+    {
+        "Folder":  "/unclaimed id",
+        "Name":  "unclaimed id specific collection",
+        "Method":  "GET",
+        "Route":  "unclaimed/id/{identifier}",
+        "BodyFields":  [
+
+                       ],
+        "HeaderNames":  [
+                            "Authorization",
+                            "Content-Type",
+                            "x-obs-token"
+                        ],
+        "ResponseExamples":  0,
+        "Historical":  false,
+        "Verification":  "Collection example only; not live verified"
+    },
+    {
+        "Folder":  "/issued id",
+        "Name":  "issued id collection",
+        "Method":  "GET",
+        "Route":  "issued/id",
+        "BodyFields":  [
+
+                       ],
+        "HeaderNames":  [
+                            "Authorization",
+                            "Content-Type",
+                            "x-obs-token"
+                        ],
+        "ResponseExamples":  0,
+        "Historical":  false,
+        "Verification":  "Collection example only; not live verified"
+    },
+    {
+        "Folder":  "/issued id",
+        "Name":  "issued id specific collection",
+        "Method":  "GET",
+        "Route":  "issued/id/{identifier}",
+        "BodyFields":  [
+
+                       ],
+        "HeaderNames":  [
+                            "Authorization",
+                            "Content-Type",
+                            "x-obs-token"
+                        ],
+        "ResponseExamples":  0,
+        "Historical":  false,
+        "Verification":  "Collection example only; not live verified"
+    },
+    {
+        "Folder":  "/utils",
+        "Name":  "regions",
+        "Method":  "GET",
+        "Route":  "util/address/region",
+        "BodyFields":  [
+
+                       ],
+        "HeaderNames":  [
+                            "Authorization",
+                            "Content-Type",
+                            "token"
+                        ],
+        "ResponseExamples":  0,
+        "Historical":  false,
+        "Verification":  "Collection example only; not live verified"
+    },
+    {
+        "Folder":  "/utils",
+        "Name":  "province",
+        "Method":  "GET",
+        "Route":  "util/address/province/{identifier}",
+        "BodyFields":  [
+
+                       ],
+        "HeaderNames":  [
+                            "Authorization",
+                            "Content-Type",
+                            "token"
+                        ],
+        "ResponseExamples":  0,
+        "Historical":  false,
+        "Verification":  "Collection example only; not live verified"
+    },
+    {
+        "Folder":  "/utils",
+        "Name":  "allprovince",
+        "Method":  "GET",
+        "Route":  "util/address/province/{identifier}",
+        "BodyFields":  [
+
+                       ],
+        "HeaderNames":  [
+                            "Authorization",
+                            "Content-Type",
+                            "token"
+                        ],
+        "ResponseExamples":  0,
+        "Historical":  false,
+        "Verification":  "Collection example only; not live verified"
+    },
+    {
+        "Folder":  "/utils",
+        "Name":  "city",
+        "Method":  "GET",
+        "Route":  "util/address/city/{identifier}",
+        "BodyFields":  [
+
+                       ],
+        "HeaderNames":  [
+                            "Authorization",
+                            "Content-Type",
+                            "token"
+                        ],
+        "ResponseExamples":  0,
+        "Historical":  false,
+        "Verification":  "Collection example only; not live verified"
+    },
+    {
+        "Folder":  "/utils",
+        "Name":  "departments",
+        "Method":  "GET",
+        "Route":  "classification",
+        "BodyFields":  [
+
+                       ],
+        "HeaderNames":  [
+                            "Authorization",
+                            "Content-Type",
+                            "x-obs-token"
+                        ],
+        "ResponseExamples":  0,
+        "Historical":  false,
+        "Verification":  "Collection example only; not live verified"
+    },
+    {
+        "Folder":  "/utils",
+        "Name":  "nationality",
+        "Method":  "GET",
+        "Route":  "util/nationality",
+        "BodyFields":  [
+
+                       ],
+        "HeaderNames":  [
+                            "Authorization",
+                            "Content-Type",
+                            "token"
+                        ],
+        "ResponseExamples":  0,
+        "Historical":  false,
+        "Verification":  "Collection example only; not live verified"
+    },
+    {
+        "Folder":  "/utils",
+        "Name":  "sourceofincome",
+        "Method":  "GET",
+        "Route":  "util/sourceofincome",
+        "BodyFields":  [
+
+                       ],
+        "HeaderNames":  [
+                            "Authorization",
+                            "Content-Type",
+                            "x-obs-token"
+                        ],
+        "ResponseExamples":  0,
+        "Historical":  false,
+        "Verification":  "Collection example only; not live verified"
+    },
+    {
+        "Folder":  "/utils",
+        "Name":  "natureofwork",
+        "Method":  "GET",
+        "Route":  "util/natureofwork",
+        "BodyFields":  [
+
+                       ],
+        "HeaderNames":  [
+                            "Authorization",
+                            "Content-Type",
+                            "x-obs-token"
+                        ],
+        "ResponseExamples":  0,
+        "Historical":  false,
+        "Verification":  "Collection example only; not live verified"
+    },
+    {
+        "Folder":  "/utils",
+        "Name":  "barangay",
+        "Method":  "GET",
+        "Route":  "util/address/barangay/{identifier}",
+        "BodyFields":  [
+
+                       ],
+        "HeaderNames":  [
+                            "Authorization",
+                            "Content-Type",
+                            "token"
+                        ],
+        "ResponseExamples":  0,
+        "Historical":  false,
+        "Verification":  "Collection example only; not live verified"
+    },
+    {
+        "Folder":  "/audit",
+        "Name":  "alldata",
+        "Method":  "GET",
+        "Route":  "audittrail",
+        "BodyFields":  [
+
+                       ],
+        "HeaderNames":  [
+                            "Authorization",
+                            "Content-Type",
+                            "x-obs-token"
+                        ],
+        "ResponseExamples":  0,
+        "Historical":  false,
+        "Verification":  "Collection example only; not live verified"
+    },
+    {
+        "Folder":  "/audit",
+        "Name":  "specific",
+        "Method":  "GET",
+        "Route":  "audittrail/{identifier}",
+        "BodyFields":  [
+
+                       ],
+        "HeaderNames":  [
+                            "Authorization",
+                            "Content-Type",
+                            "token"
+                        ],
+        "ResponseExamples":  0,
+        "Historical":  false,
+        "Verification":  "Collection example only; not live verified"
+    },
+    {
+        "Folder":  "/audit",
+        "Name":  "history",
+        "Method":  "GET",
+        "Route":  "history",
+        "BodyFields":  [
+
+                       ],
+        "HeaderNames":  [
+                            "Authorization",
+                            "Content-Type",
+                            "x-obs-token"
+                        ],
+        "ResponseExamples":  0,
+        "Historical":  false,
+        "Verification":  "Collection example only; not live verified"
+    },
+    {
+        "Folder":  "",
+        "Name":  "s3 upload",
+        "Method":  "POST",
+        "Route":  "api/v1/s3/upload",
+        "BodyFields":  [
+                           "key",
+                           "base64image"
+                       ],
+        "HeaderNames":  [
+                            "Authorization",
+                            "Content-Type"
+                        ],
+        "ResponseExamples":  0,
+        "Historical":  false,
+        "Verification":  "Collection example only; not live verified"
+    },
+    {
+        "Folder":  "",
+        "Name":  "s3 list file",
+        "Method":  "POST",
+        "Route":  "api/v1/s3/upload",
+        "BodyFields":  [
+                           "key",
+                           "base64image"
+                       ],
+        "HeaderNames":  [
+                            "Authorization",
+                            "Content-Type"
+                        ],
+        "ResponseExamples":  0,
+        "Historical":  false,
+        "Verification":  "Collection example only; not live verified"
+    }
+]

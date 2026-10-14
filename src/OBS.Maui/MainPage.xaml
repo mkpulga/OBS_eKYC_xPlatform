@@ -1,0 +1,137 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    xmlns:core="clr-namespace:OBS.Core;assembly=OBS.Core"
+    x:Class="OBS.Maui.MainPage"
+    Title="OBS_eKYC"
+    BackgroundColor="{DynamicResource ThemeBackground}">
+
+    <!-- Edit colors, typography, spacing and control styles here.
+         Deployment theme.ini supplies the Theme* colors at startup. -->
+    <ContentPage.Resources>
+        <Color x:Key="ThemeBackground">#F4F6F8</Color>
+        <Color x:Key="ThemeNavigation">#17324D</Color>
+        <Color x:Key="ThemeAction">#007F82</Color>
+        <Color x:Key="ThemeText">#202B36</Color>
+
+        <Style TargetType="Label">
+            <Setter Property="TextColor" Value="{DynamicResource ThemeText}" />
+            <Setter Property="FontSize" Value="16" />
+        </Style>
+        <Style x:Key="HeadingStyle" TargetType="Label">
+            <Setter Property="TextColor" Value="{DynamicResource ThemeNavigation}" />
+            <Setter Property="FontSize" Value="22" />
+            <Setter Property="FontAttributes" Value="Bold" />
+            <Setter Property="Margin" Value="0,0,0,8" />
+            <Setter Property="SemanticProperties.HeadingLevel" Value="Level2" />
+        </Style>
+        <Style TargetType="Entry">
+            <Setter Property="MinimumHeightRequest" Value="44" />
+            <Setter Property="TextColor" Value="{DynamicResource ThemeText}" />
+            <Setter Property="BackgroundColor" Value="White" />
+        </Style>
+        <Style x:Key="PrimaryButtonStyle" TargetType="Button">
+            <Setter Property="MinimumHeightRequest" Value="44" />
+            <Setter Property="BackgroundColor" Value="{DynamicResource ThemeAction}" />
+            <Setter Property="TextColor" Value="White" />
+            <Setter Property="CornerRadius" Value="6" />
+        </Style>
+        <Style TargetType="Button" BasedOn="{StaticResource PrimaryButtonStyle}" />
+        <Style x:Key="SecondaryButtonStyle" TargetType="Button" BasedOn="{StaticResource PrimaryButtonStyle}">
+            <Setter Property="BackgroundColor" Value="White" />
+            <Setter Property="TextColor" Value="{DynamicResource ThemeNavigation}" />
+            <Setter Property="BorderColor" Value="{DynamicResource ThemeNavigation}" />
+            <Setter Property="BorderWidth" Value="1" />
+        </Style>
+    </ContentPage.Resources>
+
+    <ScrollView>
+        <VerticalStackLayout x:Name="PageContent" Padding="24" Spacing="20"
+                             MaximumWidthRequest="680" HorizontalOptions="Fill">
+            <VerticalStackLayout Spacing="4">
+                <Label x:Name="ProductNameLabel" Text="OBS_eKYC" FontSize="28" FontAttributes="Bold"
+                       TextColor="{DynamicResource ThemeNavigation}" SemanticProperties.HeadingLevel="Level1" />
+                <Label x:Name="CityNameLabel" Text="StandAlone" />
+            </VerticalStackLayout>
+
+            <!-- These panels are selected by session state in MainPage.xaml.cs.
+                 Their complete visual layouts live in this file for manual editing. -->
+            <VerticalStackLayout x:Name="ConfigurationPanel" Spacing="12" IsVisible="False">
+                <Label Text="Configuration required" Style="{StaticResource HeadingStyle}" />
+                <Label x:Name="ConfigurationMessageLabel" />
+            </VerticalStackLayout>
+
+            <VerticalStackLayout x:Name="LoginPanel" Spacing="12">
+                <Label Text="Staff sign in" Style="{StaticResource HeadingStyle}" />
+                <Label Text="Email address" />
+                <Entry x:Name="LoginEmailEntry" Keyboard="Email" ReturnType="Next"
+                       SemanticProperties.Description="Email address" />
+                <Label Text="Password" />
+                <Entry x:Name="LoginPasswordEntry" IsPassword="True" ReturnType="Go"
+                       Completed="OnSignInClicked" SemanticProperties.Description="Password" />
+                <Button Text="Request OTP" Clicked="OnSignInClicked" />
+                <Button Text="Forgot Password" Clicked="OnForgotPasswordClicked" Style="{StaticResource SecondaryButtonStyle}" />
+            </VerticalStackLayout>
+
+            <VerticalStackLayout x:Name="ForgotPasswordPanel" Spacing="12" IsVisible="False">
+                <Label Text="Forgot Password" Style="{StaticResource HeadingStyle}" />
+                <Label Text="Email address" />
+                <Entry x:Name="RecoveryEmailEntry" Keyboard="Email" ReturnType="Go"
+                       Completed="OnRecoveryClicked" SemanticProperties.Description="Password recovery email address" />
+                <Button Text="Request password recovery" Clicked="OnRecoveryClicked" />
+                <Button Text="Back to Login" Clicked="OnBackToLoginClicked" Style="{StaticResource SecondaryButtonStyle}" />
+            </VerticalStackLayout>
+
+            <VerticalStackLayout x:Name="OtpPanel" Spacing="12" IsVisible="False">
+                <Label Text="OTP Verification" Style="{StaticResource HeadingStyle}" />
+                <Label Text="Six-digit OTP" />
+                <Entry x:Name="OtpEntry" Keyboard="Numeric" MaxLength="6" ReturnType="Go"
+                       Completed="OnVerifyClicked" SemanticProperties.Description="Six-digit OTP" />
+                <Button Text="Verify" Clicked="OnVerifyClicked" />
+                <Button x:Name="ResendButton" Text="Resend OTP" Clicked="OnResendClicked" IsEnabled="False" />
+                <Button Text="Back to Login" Clicked="OnBackToLoginClicked" Style="{StaticResource SecondaryButtonStyle}" />
+            </VerticalStackLayout>
+
+            <VerticalStackLayout x:Name="PasswordChangePanel" Spacing="12" IsVisible="False">
+                <Label Text="Change Password" Style="{StaticResource HeadingStyle}" />
+                <Label Text="Current password" />
+                <Entry x:Name="CurrentPasswordEntry" IsPassword="True" ReturnType="Next"
+                       SemanticProperties.Description="Current password" />
+                <Label Text="New password" />
+                <Entry x:Name="NewPasswordEntry" IsPassword="True" ReturnType="Next"
+                       SemanticProperties.Description="New password" />
+                <Label Text="Confirm new password" />
+                <Entry x:Name="ConfirmationEntry" IsPassword="True" ReturnType="Go"
+                       Completed="OnChangePasswordClicked" SemanticProperties.Description="Confirm new password" />
+                <Button Text="Change Password" Clicked="OnChangePasswordClicked" />
+                <Button Text="Return to Login" Clicked="OnLogoutClicked" Style="{StaticResource SecondaryButtonStyle}" />
+            </VerticalStackLayout>
+
+            <VerticalStackLayout x:Name="SessionPausedPanel" Spacing="12" IsVisible="False">
+                <Label Text="Checking your session" Style="{StaticResource HeadingStyle}" />
+                <Label Text="Protected work remains paused until your session is validated." />
+            </VerticalStackLayout>
+
+            <VerticalStackLayout x:Name="DashboardPanel" Spacing="12" IsVisible="False">
+                <Label Text="Dashboard" Style="{StaticResource HeadingStyle}" />
+                <Label x:Name="OperatorLabel" />
+                <!-- Change this item template to design your module buttons/cards.
+                     Items come only from the current user's backend authorities. -->
+                <VerticalStackLayout x:Name="ModuleList" Spacing="12">
+                    <BindableLayout.ItemTemplate>
+                        <DataTemplate x:DataType="core:NavigationEntry">
+                            <Button Text="{Binding Title}" CommandParameter="{Binding .}" Clicked="OnModuleClicked" />
+                        </DataTemplate>
+                    </BindableLayout.ItemTemplate>
+                </VerticalStackLayout>
+                <Button x:Name="DashboardPasswordButton" Text="Change Password" Clicked="OnOpenPasswordChangeClicked" IsVisible="False" />
+                <Button Text="Log out" Clicked="OnLogoutClicked" Style="{StaticResource SecondaryButtonStyle}" />
+            </VerticalStackLayout>
+
+            <ActivityIndicator x:Name="BusyIndicator" IsRunning="False" IsVisible="False"
+                               Color="{DynamicResource ThemeAction}" SemanticProperties.Description="Please wait" />
+            <Label x:Name="MessageLabel" IsVisible="False" />
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentPage>

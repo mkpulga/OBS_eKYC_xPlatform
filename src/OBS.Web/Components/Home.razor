@@ -1,0 +1,158 @@
+@page "/"
+@page "/error"
+@implements IAsyncDisposable
+@inject SessionController Session
+@inject DeploymentStatus Deployment
+@inject ThemeOptions Theme
+@inject IJSRuntime JS
+
+<div class="app" style="--nav:@Theme.Navigation;--action:@Theme.Action;--background:@Theme.Background;--text:@Theme.Text">
+    <aside>
+        <h1>@Theme.ProductName</h1><p>@Theme.CityName</p>
+        @if (Session.ProtectedWorkAllowed && Session.Current is { } staff)
+        {
+            <nav aria-label="Staff modules">
+                <button @onclick="() => selected = null">Dashboard</button>
+                @foreach (var entry in Navigation.For(staff))
+                {
+                    <button @onclick="() => Select(entry)">@entry.Title</button>
+                }
+                @if (staff.Allows("CPW")) { <button @onclick="Session.BeginPasswordChange">Change Password</button> }
+                <button @onclick="Logout">Log out</button>
+            </nav>
+        }
+    </aside>
+    <main id="main">
+        @if (Deployment.Error is not null)
+        {
+            <section class="panel"><h2>Deployment configuration required</h2>
+                <p role="alert">@Deployment.Error</p><p>Set the backend settings and restart the application.</p></section>
+        }
+        else if (!Session.ContractAvailable)
+        {
+            <section class="panel"><h2>API contract unavailable</h2><p>This client currently implements the Refactored contract. Legacy is unverified.</p></section>
+        }
+        else if (Session.Stage == SignInStage.Login)
+        {
+            <section class="panel auth"><h2>@(forgot ? "Forgot Password" : "Staff sign in")</h2>
+                <form @onsubmit="Login" @onsubmit:preventDefault>
+                    <label for="email">Email address</label><input id="email" type="email" autocomplete="username" @bind="email" required disabled="@busy" />
+                    @if (!forgot) { <label for="password">Password</label><input id="password" type="password" autocomplete="current-password" @bind="password" required disabled="@busy" /> }
+                    <button class="primary" type="submit" disabled="@busy">@(busy ? "Please wait…" : forgot ? "Request password recovery" : "Request OTP")</button>
+                </form>
+                <button @onclick="ToggleForgot" disabled="@busy">@(forgot ? "Back to Login" : "Forgot Password")</button>
+            </section>
+        }
+        else if (Session.Stage == SignInStage.Otp)
+        {
+            <section class="panel auth"><h2>OTP Verification</h2>
+                <form @onsubmit="Verify" @onsubmit:preventDefault>
+                    <label for="otp">Six-digit OTP</label><input id="otp" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="[0-9]{6}" @bind="otp" required disabled="@busy" />
+                    <button class="primary" disabled="@busy">Verify</button>
+                </form>
+                <button @onclick="Resend" disabled="@(busy || Session.ResendSeconds > 0)">Resend OTP @(Session.ResendSeconds > 0 ? $"({Session.ResendSeconds}s)" : "")</button>
+                <button @onclick="Back">Back to Login</button>
+            </section>
+        }
+        else if (Session.Stage == SignInStage.PasswordChange)
+        {
+            <section class="panel auth"><h2>Change Password</h2>
+                <form @onsubmit="ChangePassword" @onsubmit:preventDefault>
+                    <label for="current">Current password</label><input id="current" type="password" autocomplete="current-password" @bind="password" required disabled="@busy" />
+                    <label for="new">New password</label><input id="new" type="password" autocomplete="new-password" @bind="newPassword" required disabled="@busy" />
+                    <label for="confirm">Confirm new password</label><input id="confirm" type="password" autocomplete="new-password" @bind="confirmation" required disabled="@busy" />
+                    <button class="primary" disabled="@busy">Change Password</button>
+                </form><button @onclick="Logout">Return to Login</button>
+            </section>
+        }
+        else if (Session.ProtectedWorkAllowed && Session.Current is { } user)
+        {
+            <section class="panel"><h2>@(selected?.Title ?? "Dashboard")</h2><p>Signed in as @user.Email</p>
+                @if (selected is not null)
+                {
+                    <p role="status">This workflow is blocked in this migration until its data, action contracts, and acceptance tests are implemented.</p>
+                }
+                else
+                {
+                    <p>Your permitted modules appear in the navigation.</p>
+                    <p>Web capture is unavailable. Required saved captures remain mandatory for submission.</p>
+                }
+            </section>
+        }
+        else if (Session.Stage == SignInStage.Protected)
+        { <section class="panel"><h2>Checking your session</h2><p>Protected work will resume after session validation.</p></section> }
+        @if (!string.IsNullOrEmpty(Session.Message)) { <p class="message" role="status" aria-live="polite">@Session.Message</p> }
+        <footer>OBS_eKYC · @Deployment.Contract / @Deployment.Features · Authentication migration</footer>
+    </main>
+</div>
+
+@code {
+    private string email = "", password = "", otp = "", newPassword = "", confirmation = "";
+    private bool busy, forgot, disposed;
+    private NavigationEntry? selected;
+    private readonly CancellationTokenSource stop = new();
+    private Task? checks, countdown;
+    private DotNetObjectReference<Home>? reference;
+    protected override void OnInitialized()
+    {
+        Session.Changed += Changed;
+        checks = RunChecks(); countdown = Tick();
+    }
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+        reference = DotNetObjectReference.Create(this);
+        await JS.InvokeVoidAsync("obsLifecycle.attach", reference);
+    }
+    [JSInvokable] public async Task VisibilityChanged(bool visible)
+    {
+        if (visible) await Session.ResumeAsync(); else Session.Pause();
+    }
+    private async Task RunChecks() { try { await Session.RunChecksAsync(stop.Token); } catch (OperationCanceledException) { } }
+    private async Task Tick()
+    {
+        using var timer = new PeriodicTimer(TimeSpan.FromSeconds(1));
+        try { while (await timer.WaitForNextTickAsync(stop.Token)) if (Session.Stage == SignInStage.Otp) await InvokeAsync(StateHasChanged); }
+        catch (OperationCanceledException) { }
+    }
+    private void Changed()
+    {
+        if (disposed) return;
+        _ = InvokeAsync(() =>
+        {
+            if (Session.Stage == SignInStage.Login) { ClearFields(); selected = null; }
+            if (Session.Stage is SignInStage.Protected or SignInStage.PasswordChange) { password = ""; otp = ""; }
+            StateHasChanged();
+        });
+    }
+    private async Task Execute(Func<Task> action)
+    {
+        if (busy) return;
+        busy = true;
+        try { await action(); }
+        finally { busy = false; password = ""; otp = ""; newPassword = ""; confirmation = ""; }
+    }
+    private Task Login() => Execute(() => forgot ? Session.ForgotPasswordAsync(email) : Session.SignInAsync(email, password));
+    private Task Verify() => Execute(() => Session.VerifyAsync(otp));
+    private Task Resend() => Execute(Session.ResendAsync);
+    private Task ChangePassword() => Execute(() => Session.ChangePasswordAsync(password, newPassword, confirmation));
+    private void ToggleForgot() { forgot = !forgot; ClearFields(); }
+    private void Back() { Session.BackToLogin(); ClearFields(); }
+    private void ClearFields() { email = password = otp = newPassword = confirmation = ""; }
+    private void Select(NavigationEntry entry)
+    {
+        if (Session.ProtectedWorkAllowed && Session.Current is { } staff && entry.Authorities.Any(staff.Allows)) selected = entry;
+    }
+    private async Task Logout()
+    {
+        if (await JS.InvokeAsync<bool>("confirm", "Are you sure you want to log out?")) await Execute(Session.LogoutAsync);
+    }
+    public async ValueTask DisposeAsync()
+    {
+        disposed = true; Session.Changed -= Changed; stop.Cancel(); ClearFields(); Session.Dispose();
+        if (checks is not null) await checks;
+        if (countdown is not null) await countdown;
+        try { await JS.InvokeVoidAsync("obsLifecycle.detach"); } catch (JSDisconnectedException) { }
+        reference?.Dispose(); stop.Dispose();
+    }
+}
