@@ -34,6 +34,8 @@ builder.Services.AddScoped<IAuthenticationGateway>(_ =>
     // A dedicated handler per circuit: no shared cookies, bearer headers, or credentials.
     return new OwnedGateway(backend);
 });
+builder.Services.AddScoped<ICardholderVerification>(_ =>
+    configurationError is not null ? new UnavailableCardholderVerification() : new OwnedCardholderVerification(backend));
 builder.Services.AddScoped<SessionController>();
 var app = builder.Build();
 if (!app.Environment.IsDevelopment())
@@ -80,5 +82,19 @@ public sealed class OwnedGateway : IAuthenticationGateway, IDisposable
     public Task TerminateAsync(StaffSession session, CancellationToken token) => inner.TerminateAsync(session, token);
     public Task<ApiResult> ForgotPasswordAsync(string email, CancellationToken token) => inner.ForgotPasswordAsync(email, token);
     public Task<ApiResult> ChangePasswordAsync(StaffSession session, string currentPassword, string newPassword, CancellationToken token) => inner.ChangePasswordAsync(session, currentPassword, newPassword, token);
+    public void Dispose() => client.Dispose();
+}
+
+// Same per-circuit ownership as OwnedGateway: no shared bearer headers across circuits.
+public sealed class OwnedCardholderVerification : ICardholderVerification, IDisposable
+{
+    private readonly HttpClient client;
+    private readonly CardholderVerificationService inner;
+    public OwnedCardholderVerification(BackendOptions options)
+    {
+        client = new(new HttpClientHandler { UseCookies = false, AllowAutoRedirect = false }) { Timeout = TimeSpan.FromSeconds(30) };
+        inner = new(new ApiTransport(client, options));
+    }
+    public Task<PendingReply> GetPendingAsync(StaffSession session, CancellationToken token) => inner.GetPendingAsync(session, token);
     public void Dispose() => client.Dispose();
 }

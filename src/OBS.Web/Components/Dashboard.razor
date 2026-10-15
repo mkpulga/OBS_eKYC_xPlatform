@@ -46,7 +46,11 @@
             {
                 <div class="dash-notice" role="status">@(string.IsNullOrEmpty(Message) ? notice : Message)<button class="dash-dismiss" @onclick="() => notice = null" aria-label="Dismiss notice" hidden="@(!string.IsNullOrEmpty(Message))">×</button></div>
             }
-            @if (selected is not null)
+            @if (CardholderVerificationPresentation.IsQueue(selected))
+            {
+                <CardholderQueue OnBack="ShowOverview" />
+            }
+            else if (selected is not null)
             {
                 <section class="dash-card dash-workflow"><h1>@selected.Title</h1><p>This workflow is not available yet.</p><button class="dash-back" @onclick="ShowOverview">Back to dashboard</button></section>
             }

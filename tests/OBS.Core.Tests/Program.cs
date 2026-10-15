@@ -301,6 +301,91 @@ Add("Ambiguous access token case variants fail closed", async () =>
     Check(reply.Outcome == RefreshOutcome.ContractBlocked, "Conflicting fields accepted");
 });
 
+StaffSession Verifier() => new("staff@example.invalid", new("a", "r", "x"), [CardholderVerificationService.Authority]);
+CardholderVerificationService Cardholders(HttpClient client) => new(new ApiTransport(client, Options()));
+Add("Pending cardholders use an authorized GET without a body", async () =>
+{
+    var calls = 0;
+    using var client = new HttpClient(new StubHandler(request =>
+    {
+        Check(request.Method == HttpMethod.Get && request.RequestUri!.AbsolutePath == "/obs/api/v1/cardholder/pending", "Wrong request");
+        Check(request.Headers.Authorization?.Scheme == "Bearer" && request.Headers.Authorization.Parameter == "a", "Bearer missing");
+        Check(request.Headers.GetValues("X-Obs-Token").Single() == "test-header", "Configured header lost");
+        Check(request.Content is null, "GET sent a body");
+        calls++;
+        return Response("{\"code\":0,\"data\":[]}");
+    }));
+    var reply = await Cardholders(client).GetPendingAsync(Verifier(), default);
+    Check(calls == 1 && reply.Outcome == PendingOutcome.Success && reply.Items.Count == 0, "Empty queue mismatch");
+    Check(CardholderVerificationPresentation.Status(reply) == "No cardholders are pending verification.", "Empty queue status");
+});
+Add("GET rejects routes outside the allowlist", async () =>
+{
+    using var client = new HttpClient(new StubHandler(_ => throw new InvalidOperationException("Request sent")));
+    foreach (var route in new[] { "cardholder/pending/1", "session/refresh", "cardholder/pending?x=1", "" })
+    {
+        try { _ = await new ApiTransport(client, Options()).GetAsync(route); throw new InvalidOperationException($"Accepted {route}"); }
+        catch (ArgumentException) { }
+    }
+});
+Add("Pending queue without PENDINGORS sends no request", async () =>
+{
+    using var client = new HttpClient(new StubHandler(_ => throw new InvalidOperationException("Request sent")));
+    var reply = await Cardholders(client).GetPendingAsync(Staff(), default);
+    Check(reply.Outcome == PendingOutcome.NotPermitted && reply.Items.Count == 0, "Permission bypassed");
+});
+Add("Pending queue sorts oldest first and numbers rows", async () =>
+{
+    const string body = """
+    {"code":0,"message":"ok","data":[
+      {"referencenumber":"R3","fullname":"Third","datecreated":"2026-03-01 08:00:00"},
+      {"referencenumber":"RX","fullname":"Unparseable","datecreated":"not a date"},
+      {"ReferenceNumber":"R1","firstname":"Ana","lastname":"Cruz","suffix":"Jr.","DateCreated":"2026-01-01T08:00:00"},
+      {"referencenumber":"R2","fullname":"Second","datecreated":"2026-02-01 08:00:00"}]}
+    """;
+    using var client = new HttpClient(new StubHandler(_ => Response(body)));
+    var reply = await Cardholders(client).GetPendingAsync(Verifier(), default);
+    Check(reply.Outcome == PendingOutcome.Success && reply.Message == "ok", "Success lost");
+    Check(string.Join(",", reply.Items.Select(item => item.referencenumber)) == "R1,R2,R3,RX", "Wrong order");
+    Check(string.Join(",", reply.Items.Select(item => item.No)) == "1,2,3,4", "Wrong numbering");
+    Check(CardholderVerificationPresentation.Name(reply.Items[0]) == "Ana Cruz Jr.", "Name fallback");
+    Check(CardholderVerificationPresentation.Status(reply) is null && CardholderVerificationPresentation.Count(reply) == "4 pending", "Row status");
+});
+Add("Pending queue rejections keep the backend message", async () =>
+{
+    foreach (var (status, body) in new[] { (HttpStatusCode.OK, "{\"code\":3,\"message\":\"Token expired\"}"), (HttpStatusCode.Unauthorized, "{\"code\":401,\"message\":\"Token expired\"}") })
+    {
+        using var client = new HttpClient(new StubHandler(_ => Response(body, status)));
+        var reply = await Cardholders(client).GetPendingAsync(Verifier(), default);
+        Check(reply.Outcome == PendingOutcome.Rejected && reply.Items.Count == 0 && CardholderVerificationPresentation.Status(reply) == "Token expired", "Rejection lost");
+    }
+});
+Add("Pending queue connection failures are not rejections", async () =>
+{
+    foreach (Func<HttpRequestMessage, HttpResponseMessage> respond in new Func<HttpRequestMessage, HttpResponseMessage>[]
+        { _ => throw new HttpRequestException("test"), _ => Response("{\"code\":0,\"data\":[]}", HttpStatusCode.BadGateway) })
+    {
+        using var client = new HttpClient(new StubHandler(respond));
+        var reply = await Cardholders(client).GetPendingAsync(Verifier(), default);
+        Check(reply.Outcome == PendingOutcome.ConnectionFailure && reply.Items.Count == 0, "Connection failure misclassified");
+    }
+});
+Add("Pending queue malformed payloads fail closed", async () =>
+{
+    // The cid case documents a known gap: Json.NET coerced numbers to strings, System.Text.Json does not.
+    foreach (var body in new[] { "{\"code\":0}", "{\"code\":0,\"data\":{\"fullname\":\"x\"}}", "{\"code\":0,\"data\":[{\"cid\":123}]}", "<html>gateway</html>" })
+    {
+        using var client = new HttpClient(new StubHandler(_ => Response(body)));
+        var reply = await Cardholders(client).GetPendingAsync(Verifier(), default);
+        Check(reply.Outcome == PendingOutcome.InvalidResponse && reply.Items.Count == 0, $"Malformed payload accepted: {body}");
+    }
+});
+Add("Unavailable cardholder service never fabricates a queue", async () =>
+{
+    var reply = await new UnavailableCardholderVerification().GetPendingAsync(Verifier(), default);
+    Check(reply.Outcome == PendingOutcome.Unavailable && reply.Items.Count == 0, "Unavailable queue mismatch");
+});
+
 var failed = 0;
 foreach (var test in tests)
 {
