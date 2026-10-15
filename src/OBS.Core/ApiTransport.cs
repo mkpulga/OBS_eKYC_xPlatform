@@ -49,7 +49,10 @@ public sealed class ApiTransport(HttpClient client, BackendOptions options)
 
     public async Task<ApiResult> GetAsync(string route, RequestSecurity? security = null, CancellationToken cancellationToken = default)
     {
-        if (!GetRoutes.Contains(route)) throw new ArgumentException("Route is outside the implemented slices.", nameof(route));
+        var segments = route.Split('/');
+        var applicationRoute = segments.Length == 3 && segments[0] == "cardholder" && segments[1] == "pending" && ApplicationPresentation.ValidNumber(segments[2]);
+        var documentRoute = segments.Length == 4 && segments[0] == "documents" && segments[1] == "pending" && segments[3] == "ALL" && ApplicationPresentation.ValidNumber(segments[2]);
+        if (!GetRoutes.Contains(route) && !applicationRoute && !documentRoute) throw new ArgumentException("Route is outside the implemented slices.", nameof(route));
         using var request = new HttpRequestMessage(HttpMethod.Get, new Uri(root, route));
         return await SendAsync(request, security, cancellationToken);
     }

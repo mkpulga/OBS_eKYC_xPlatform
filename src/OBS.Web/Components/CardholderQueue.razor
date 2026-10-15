@@ -25,7 +25,7 @@
                     {
                         <tr>
                             <td data-label="No.">@item.No</td>
-                            <td data-label="Reference No.">@CardholderVerificationPresentation.Text(item.referencenumber)</td>
+                            <td data-label="Reference No."><button class="application-text-button" @onclick='() => OnView.InvokeAsync(item.referencenumber ?? "")' disabled="@(string.IsNullOrWhiteSpace(item.referencenumber))" aria-label="@($"View application {item.referencenumber}")">@CardholderVerificationPresentation.Text(item.referencenumber)</button></td>
                             <td data-label="Cardholder"><strong>@CardholderVerificationPresentation.Name(item)</strong></td>
                             <td data-label="Address">@CardholderVerificationPresentation.Text(CardholderVerificationPresentation.Address(item))</td>
                             <td data-label="Mobile">@CardholderVerificationPresentation.Text(item.msisdn)</td>
@@ -42,6 +42,7 @@
 
 @code {
     [Parameter] public EventCallback OnBack { get; set; }
+    [Parameter] public EventCallback<string> OnView { get; set; }
     private PendingReply? reply;
     private bool loading;
     private CancellationTokenSource? load;

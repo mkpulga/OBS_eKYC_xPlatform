@@ -12,7 +12,7 @@ public sealed partial class MainPage : ContentPage
     private SignInStage renderedStage = (SignInStage)(-1);
     private bool renderedProtected;
 
-    public MainPage(SessionController session, ClientStatus status, ThemeOptions theme, ICardholderVerification cardholders)
+    public MainPage(SessionController session, ClientStatus status, ThemeOptions theme, ICardholderVerification cardholders, IApplicationRecords applications)
     {
         InitializeComponent();
         this.session = session;
@@ -23,7 +23,7 @@ public sealed partial class MainPage : ContentPage
         Resources["ThemeText"] = Color.FromArgb(theme.Text);
         ProductNameLabel.Text = theme.ProductName;
         CityNameLabel.Text = theme.CityName;
-        DashboardPanel.Configure(theme, session, cardholders);
+        DashboardPanel.Configure(theme, session, cardholders, applications);
         DashboardPanel.LogoutRequested += OnLogoutClicked;
         DashboardPanel.PasswordChangeRequested += OnOpenPasswordChangeClicked;
 

@@ -322,7 +322,7 @@ Add("Pending cardholders use an authorized GET without a body", async () =>
 Add("GET rejects routes outside the allowlist", async () =>
 {
     using var client = new HttpClient(new StubHandler(_ => throw new InvalidOperationException("Request sent")));
-    foreach (var route in new[] { "cardholder/pending/1", "session/refresh", "cardholder/pending?x=1", "" })
+    foreach (var route in new[] { "cardholder/pending/../1", "cardholder/pending/a%2Fb", "documents/pending/1/OTHER", "session/refresh", "cardholder/pending?x=1", "" })
     {
         try { _ = await new ApiTransport(client, Options()).GetAsync(route); throw new InvalidOperationException($"Accepted {route}"); }
         catch (ArgumentException) { }
@@ -386,6 +386,7 @@ Add("Unavailable cardholder service never fabricates a queue", async () =>
     Check(reply.Outcome == PendingOutcome.Unavailable && reply.Items.Count == 0, "Unavailable queue mismatch");
 });
 
+ApplicationRecordTests.Register(Add, Check, Options, Verifier);
 var failed = 0;
 foreach (var test in tests)
 {

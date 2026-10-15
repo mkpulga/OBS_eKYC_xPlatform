@@ -21,7 +21,9 @@ Workflow requests migrated so far:
 |---|---|---|
 | Pending cardholder verification queue | GET `cardholder/pending`, access bearer, configured token header; derived from `getAllCardHolderVerification_v1` | Collection lists `Authorization`, `Content-Type`, `x-obs-token` with no response example; row fields come from the `cardholderVerificationCollectionReport.rdlc` `CollectionModel` inventory, not a live payload |
 
-`ApiTransport` accepts GET only for an explicit route allowlist (currently `cardholder/pending`); POST keeps its authentication-slice allowlist. Both share the same header, envelope, and failure handling.
+`ApiTransport` accepts GET only for explicit route shapes: `cardholder/pending`, `cardholder/pending/{number}` and `documents/pending/{number}/ALL`. Identifiers accept at most 100 ASCII letters, digits, hyphens or underscores; path traversal, queries and additional segments are rejected. POST keeps its authentication-slice allowlist. Both share the same header, envelope, and failure handling.
+
+View Application uses the source `getCardHolderVerificationSpecific_v1` and `getPendingDocument_v1` routes with access bearer and the configured token header. Its field mapping comes from `cardholderVerificationSpecificDeserializeObject` and `documents`, including nested personal information, present/permanent addresses, emergency contact, education, identification, specimen remarks and document `filename/doctype/docvalue`. Scalar numeric values are retained as text. Security questions/answers are not retained. A successful detail envelope must contain exactly one record whose reference matches the requested number. An empty data array or HTTP 404 is a missing record. Document business code 11 is the source's no-documents outcome; other document failures preserve the loaded applicant with a separate error. Live response and backend permission enforcement still require deployment acceptance.
 
 Pending cardholder differences from source:
 
@@ -30,7 +32,7 @@ Pending cardholder differences from source:
 - Source sorted with `DateTime.Parse` in the machine culture, so one unparseable `datecreated` failed the whole queue. The migration parses with the invariant culture, keeps oldest-first ordering, and places unparseable dates last. `No` is renumbered 1..n after sorting, as in source.
 - Source reported progress with a 10 ms sleep per row; the migration loads asynchronously with a loading indicator instead.
 - Json.NET coerced JSON numbers into string properties; System.Text.Json does not. If the live payload sends fields such as `cid` or `citizenid` as numbers, the queue currently fails closed as an invalid response. This needs a sanitized live response to resolve.
-- Approve/reject/return, the specific-record route, and the collection/specific reports are not migrated.
+- Approve/reject/return and the collection/specific reports are not migrated. The read-only specific-record route is now used by View Application.
 
 The general envelope is `code,message,data[]`. Login data fields mapped from source are `email`, `token.accesstoken`, `password.isfirstlogon`, `password.isexpired`, and `roles.modules/minpassword/maxpassword`. Login refresh and XSRF state comes from exactly `refresh_token` and `XSRF-TOKEN`. Other cookies aren't classified as XSRF. Values retain embedded equals; percent-encoded XSRF is decoded for the request header. That encoding choice needs live comparison against the backend. Refresh data maps `accesstoken`; cookies rotate independently, and absent rotation retains the previous token rather than inventing a new one. Explicit blank tokens invalidate a success.
 

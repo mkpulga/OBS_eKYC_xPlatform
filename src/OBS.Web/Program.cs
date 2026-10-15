@@ -37,6 +37,8 @@ builder.Services.AddScoped<IAuthenticationGateway>(_ =>
 builder.Services.AddScoped<ICardholderVerification>(_ =>
     configurationError is not null ? new UnavailableCardholderVerification() : new OwnedCardholderVerification(backend));
 builder.Services.AddScoped<SessionController>();
+builder.Services.AddScoped<IApplicationRecords>(_ =>
+    configurationError is not null ? new UnavailableApplicationRecords() : new OwnedApplicationRecords(backend));
 var app = builder.Build();
 if (!app.Environment.IsDevelopment())
 {
@@ -58,6 +60,14 @@ app.MapRazorComponents<App>().AddInteractiveServerRenderMode();
 app.Run();
 
 public sealed record DeploymentStatus(string? Error, ApiContract Contract, FeatureSet Features);
+public sealed class OwnedApplicationRecords : IApplicationRecords, IDisposable
+{
+    private readonly HttpClient client = new(new HttpClientHandler { UseCookies = false, AllowAutoRedirect = false }) { Timeout = TimeSpan.FromSeconds(30) };
+    private readonly ApplicationRecordsService inner;
+    public OwnedApplicationRecords(BackendOptions options) => inner = new(new ApiTransport(client, options));
+    public Task<ApplicationReply> FindAsync(StaffSession session, string number, CancellationToken token) => inner.FindAsync(session, number, token);
+    public void Dispose() => client.Dispose();
+}
 public sealed class DevelopmentKeyRepository : IXmlRepository
 {
     private readonly List<XElement> elements = [];

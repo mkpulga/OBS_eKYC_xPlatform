@@ -9,6 +9,7 @@ public static class MauiProgram
         var builder = MauiApp.CreateBuilder().UseMauiApp<App>();
         IAuthenticationGateway gateway;
         ICardholderVerification cardholders;
+        IApplicationRecords applications;
         string? error = null;
         using var stream = typeof(MauiProgram).Assembly.GetManifestResourceStream("OBS.Maui.app.ini")!;
         using var reader = new StreamReader(stream);
@@ -17,12 +18,14 @@ public static class MauiProgram
             var options = BackendOptions.ReadIni(reader.ReadToEnd());
             gateway = new OwnedGateway(options);
             cardholders = new OwnedCardholderVerification(options);
+            applications = new OwnedApplicationRecords(options);
         }
         catch (ArgumentException exception)
         {
             error = exception.Message;
             gateway = new UnverifiedAuthenticationGateway();
             cardholders = new UnavailableCardholderVerification();
+            applications = new UnavailableApplicationRecords();
         }
         builder.Services.AddSingleton(new ClientStatus(error));
         using var themeStream = typeof(MauiProgram).Assembly.GetManifestResourceStream("OBS.Maui.theme.ini")!;
@@ -30,12 +33,21 @@ public static class MauiProgram
         builder.Services.AddSingleton(ThemeOptions.ReadIni(themeReader.ReadToEnd()));
         builder.Services.AddSingleton<IAuthenticationGateway>(gateway);
         builder.Services.AddSingleton(cardholders);
+        builder.Services.AddSingleton(applications);
         builder.Services.AddSingleton<SessionController>();
         builder.Services.AddSingleton<MainPage>();
         return builder.Build();
     }
 }
 public sealed record ClientStatus(string? ConfigurationError);
+public sealed class OwnedApplicationRecords : IApplicationRecords, IDisposable
+{
+    private readonly HttpClient client = new(new HttpClientHandler { UseCookies = false, AllowAutoRedirect = false }) { Timeout = TimeSpan.FromSeconds(30) };
+    private readonly ApplicationRecordsService inner;
+    public OwnedApplicationRecords(BackendOptions options) => inner = new(new ApiTransport(client, options));
+    public Task<ApplicationReply> FindAsync(StaffSession session, string number, CancellationToken token) => inner.FindAsync(session, number, token);
+    public void Dispose() => client.Dispose();
+}
 public sealed class OwnedGateway : IAuthenticationGateway, IDisposable
 {
     private readonly HttpClient client = new(new HttpClientHandler { UseCookies = false, AllowAutoRedirect = false }) { Timeout = TimeSpan.FromSeconds(30) };

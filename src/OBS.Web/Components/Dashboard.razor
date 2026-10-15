@@ -1,13 +1,16 @@
 @using System.Globalization
+@implements IDisposable
 
-<div class="dashboard-shell @(dark ? "dashboard-dark" : "") @(collapsed ? "sidebar-collapsed" : "") @(mobileOpen ? "sidebar-mobile-open" : "")">
+<div class="dashboard-shell @(viewApplication ? "application-shell" : "") @(dark ? "dashboard-dark" : "") @(collapsed ? "sidebar-collapsed" : "") @(mobileOpen ? "sidebar-mobile-open" : "")">
     <aside class="dashboard-sidebar" aria-label="Main navigation">
         <button class="dash-icon-button sidebar-toggle desktop-menu-toggle" @onclick="ToggleSidebar" aria-label="Toggle navigation" aria-expanded="@Pressed(!collapsed)"><DashboardIcon Name="menu" /></button>
         <button class="dash-icon-button sidebar-toggle mobile-menu-toggle" @onclick="() => mobileOpen = !mobileOpen" aria-label="Toggle navigation" aria-expanded="@Pressed(mobileOpen)"><DashboardIcon Name="menu" /></button>
         <div class="dash-profile"><span class="dash-avatar">@DashboardPresentation.Initials(Email)</span><div><strong title="@Email">@Email</strong><small>Staff workspace</small></div></div>
         <nav class="dash-navigation" aria-label="Staff modules">
             <p class="dash-nav-heading">OVERVIEW</p>
-            <button class="dash-nav-item @(selected is null ? "active" : "")" @onclick="ShowOverview" aria-label="Dashboard" aria-current="@(selected is null ? "page" : null)"><DashboardIcon /><span>Dashboard</span></button>
+            <button class="dash-nav-item @(selected is null && !viewApplication ? "active" : "")" @onclick="ShowOverview" aria-label="Dashboard" aria-current="@(selected is null && !viewApplication ? "page" : null)"><DashboardIcon /><span>Dashboard</span></button>
+            @if (CanViewApplications)
+            { <button class="dash-nav-item @(viewApplication ? "active" : "")" @onclick='() => OpenApplication("")' aria-label="View Application" aria-current="@(viewApplication ? "page" : null)"><DashboardIcon Name="identity" /><span>View Application</span></button> }
             @foreach (var group in Modules.Select(DashboardPresentation.Module).GroupBy(module => module.Group))
             {
                 <p class="dash-nav-heading">@group.Key</p>
@@ -15,6 +18,8 @@
                 {
                     <button class="dash-nav-item @(selected == module.Entry ? "active" : "") @group.Key.ToLowerInvariant()" title="@module.Label" aria-label="@module.Label" aria-current="@(selected == module.Entry ? "page" : null)" @onclick="() => Select(module.Entry)"><DashboardIcon Name="@module.Icon" /><span>@module.Label</span></button>
                 }
+                @if (group.Key == "RECORDS")
+                { <button class="dash-nav-item records" disabled title="Audit is not available in this client yet." aria-label="Audit unavailable"><DashboardIcon Name="audit" /><span>Audit</span></button> }
             }
         </nav>
         <div class="dash-sidebar-bottom">
@@ -29,7 +34,7 @@
             <form class="dash-search" @onsubmit="Search" @onsubmit:preventDefault>
                 <DashboardIcon Name="search" />
                 <label class="sr-only" for="dashboard-search-type">Search by</label>
-                <select id="dashboard-search-type" @bind="searchType"><option>QR Code</option><option>Cardholder</option><option>Reference No.</option></select>
+                <select id="dashboard-search-type" @bind="searchType"><option>Application Number</option><option>QR Code</option><option>Cardholder</option><option>Reference No.</option></select>
                 <label class="sr-only" for="dashboard-search">Search records</label>
                 <input id="dashboard-search" @bind="query" placeholder="Search records" />
                 <button class="dash-icon-button" type="button" title="Scan QR code" aria-label="Scan QR code" @onclick="ShowScannerNotice"><DashboardIcon Name="qr" /></button>
@@ -38,7 +43,7 @@
             <div class="dash-toolbar-actions">
                 <button class="dash-icon-button" @onclick="ShowNotifications" aria-label="Notifications"><DashboardIcon Name="bell" /></button>
                 <button class="dash-icon-button" @onclick="ToggleTheme" aria-label="@(dark ? "Switch to light mode" : "Switch to dark mode")"><DashboardIcon Name="@(dark ? "sun" : "moon")" /></button>
-                <span class="dash-city">@CityName</span>
+                <select class="dash-city dash-city-select" aria-label="City"><option>@CityName</option></select>
             </div>
         </header>
         <main class="dash-main" id="main">
@@ -46,9 +51,13 @@
             {
                 <div class="dash-notice" role="status">@(string.IsNullOrEmpty(Message) ? notice : Message)<button class="dash-dismiss" @onclick="() => notice = null" aria-label="Dismiss notice" hidden="@(!string.IsNullOrEmpty(Message))">×</button></div>
             }
-            @if (CardholderVerificationPresentation.IsQueue(selected))
+            @if (viewApplication)
             {
-                <CardholderQueue OnBack="ShowOverview" />
+                <ViewApplication @key="applicationLoad" Number="@applicationNumber" OnWorkflow="Select" />
+            }
+            else if (CardholderVerificationPresentation.IsQueue(selected))
+            {
+                <CardholderQueue OnBack="ShowOverview" OnView="OpenApplication" />
             }
             else if (selected is not null)
             {
@@ -113,12 +122,25 @@
     [Parameter] public IReadOnlyList<NavigationEntry> Modules { get; set; } = [];
     [Parameter] public bool CanChangePassword { get; set; }
     [Parameter] public string Message { get; set; } = "";
+    [Parameter] public string? InitialApplicationNumber { get; set; }
     [Parameter] public EventCallback OnLogout { get; set; }
     [Parameter] public EventCallback OnChangePassword { get; set; }
     private DashboardPeriod period = DashboardPeriod.Year;
     private NavigationEntry? selected;
     private bool dark, collapsed, mobileOpen;
-    private string searchType = "QR Code", query = "";
+    private string searchType = "Application Number", query = "", applicationNumber = "";
+    private bool viewApplication;
+    private int applicationLoad;
+    private bool CanViewApplications => Modules.Any(entry => entry.Authorities.Contains(CardholderVerificationService.Authority));
+    private readonly CancellationTokenSource clockStop = new();
+    protected override void OnInitialized() { if (InitialApplicationNumber is not null && CanViewApplications) OpenApplication(InitialApplicationNumber); _ = UpdateClock(); }
+    private async Task UpdateClock()
+    {
+        using var timer = new PeriodicTimer(TimeSpan.FromSeconds(30));
+        try { while (await timer.WaitForNextTickAsync(clockStop.Token)) await InvokeAsync(StateHasChanged); }
+        catch (OperationCanceledException) { }
+    }
+    public void Dispose() { clockStop.Cancel(); clockStop.Dispose(); }
     private string? notice;
     private DateTimeOffset Now => DashboardPresentation.LocalTime;
     private static string Pressed(bool value) => value ? "true" : "false";
@@ -126,9 +148,10 @@
     private string ChartDescription => $"Sample activity, {DashboardSample.Description(period)}. " + string.Join(". ", DashboardSample.Activity(period).Select(item => $"{item.Label}: {item.Completed} completed, {item.InProgress} in progress"));
     private void ToggleTheme() => dark = !dark;
     private void ToggleSidebar() => collapsed = !collapsed;
-    private void ShowOverview() { selected = null; notice = null; mobileOpen = false; }
-    private void Select(NavigationEntry entry) { if (Modules.Contains(entry)) { selected = entry; notice = null; mobileOpen = false; } }
-    private void Search() => notice = string.IsNullOrWhiteSpace(query) ? "Enter a value to search." : "Record search is not available yet. This dashboard displays sample data.";
+    private void ShowOverview() { selected = null; viewApplication = false; notice = null; mobileOpen = false; }
+    private void Select(NavigationEntry entry) { if (Modules.Contains(entry)) { selected = entry; viewApplication = false; notice = null; mobileOpen = false; } }
+    private void OpenApplication(string number) { if (!CanViewApplications) { notice = ApplicationPresentation.Status(ApplicationOutcome.NotPermitted); return; } applicationNumber = query = number.Trim(); applicationLoad++; selected = null; viewApplication = true; notice = null; mobileOpen = false; }
+    private void Search() { if (searchType == "Application Number" || searchType == "Reference No.") OpenApplication(query); else notice = string.IsNullOrWhiteSpace(query) ? "Enter a value to search." : "This search method is not available yet. Select Application Number."; }
     private void ShowScannerNotice() => notice = "QR scanning is not available on this dashboard yet.";
     private void ShowNotifications() => notice = "No notifications to display. This dashboard displays sample data.";
 }

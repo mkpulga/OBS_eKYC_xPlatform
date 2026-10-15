@@ -1,0 +1,96 @@
+.application-columns { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:16px; align-items:start; }
+.application-shell .dash-toolbar { min-height:92px; padding:20px 32px 24px; }
+.application-shell .dash-main { padding:0 32px 24px; }
+.dash-search:has(option:first-child:checked) select { width:146px; flex-shrink:0; }
+.dash-city-select { border:0; background:transparent; max-width:180px; }
+.dash-city-select option { background:var(--dash-sidebar); }
+.dash-navigation button:disabled { cursor:not-allowed; opacity:.6; }
+.dashboard-dark .application-dialog { background:var(--dash-sidebar); color:var(--dash-text); }
+.dashboard-dark .application-dialog dt { color:var(--dash-muted); }
+@media(max-width:500px) { .dash-search:has(option:first-child:checked) select { width:110px; font-size:10px; }.dash-search button[aria-label="Scan QR code"] { display:none; } }
+.application-columns > *, .application-personal > *, .application-side > * { min-width:0; }
+.application-view .dash-card { border-radius:21px; padding:17px; box-shadow:0 3px 12px #4b487803; }
+.application-personal,.application-side { display:grid; gap:12px; }
+.application-view h2 { font-size:15px; line-height:1.45; }
+.application-view h3 { font-size:13px; font-weight:600; margin:0; }
+.application-view .application-profile { padding:15px 15px 42px; }
+.application-cover { height:132px; border-radius:14px; background:linear-gradient(110deg,#f48500,#ff662d 53%,#1d51bc); }
+.application-photo { margin:-38px 0 12px 14px; position:relative; width:88px; height:88px; border:4px solid var(--dash-sidebar); border-radius:50%; background:var(--dash-pill); display:grid; place-items:center; box-shadow:0 5px 10px #35334e20; }
+.application-photo > .dash-icon { width:38px; height:38px; color:var(--dash-muted); }
+.application-photo > img { width:100%; height:100%; border-radius:50%; object-fit:cover; }
+.dashboard-shell .application-camera { position:absolute; width:33px; height:33px; border-radius:50%; display:grid; place-items:center; background:var(--dash-sidebar); color:var(--dash-blue); }
+.application-camera .dash-icon { width:18px; height:18px; }
+.application-name { display:flex; align-items:center; justify-content:space-between; gap:8px; margin:4px 0 10px; }
+.application-name h2 { font-size:22px; font-weight:700; overflow-wrap:anywhere; }
+.application-contact { display:flex; align-items:center; gap:8px; margin:6px 0; color:var(--dash-muted); font-size:12px; overflow-wrap:anywhere; }
+.application-contact > .dash-icon { width:15px; height:15px; }
+.application-contact > span { min-width:0; }
+.dashboard-shell .application-contact button { color:var(--dash-blue); background:transparent; padding:0; text-align:left; }
+.application-badges { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin:16px 0; }
+.application-badges > div { border:1px solid #91d1c5; background:#42ba9b19; padding:10px; border-radius:12px; display:flex; flex-direction:column; gap:3px; overflow-wrap:anywhere; }
+.application-badges > div + div { border-color:#e6bc8c; background:#d4a96818; }
+.application-badges small { font-size:10px; }
+.application-badges strong { color:#008865; font-size:12px; font-weight:650; text-transform:uppercase; }
+.application-badges > div + div strong { color:#ad6500; }
+.dashboard-dark .application-badges strong { color:#73dbbe; }
+.dashboard-dark .application-badges > div + div strong { color:#f0c285; }
+.application-address { border-top:1px solid var(--dash-grid); padding-top:10px; }
+.application-address p { color:var(--dash-text); margin:7px 0 11px; line-height:1.65; overflow-wrap:anywhere; }
+.application-section-title { display:flex; align-items:center; gap:10px; min-height:34px; }
+.application-section-title h2,.application-section-title h3 { flex:1; }
+.application-view .dash-icon-button { min-height:30px; width:30px; padding:6px; color:var(--dash-blue); }
+.application-view .dash-icon-button .dash-icon { width:18px; height:18px; }
+.application-view .application-edit { color:var(--dash-muted); flex-shrink:0; }
+.dashboard-shell .application-view button:disabled { cursor:not-allowed; opacity:.65; }
+.application-heading-icon { display:grid; place-items:center; width:34px; height:34px; background:#485e9817; border-radius:11px; color:var(--dash-blue); flex-shrink:0; }
+.application-heading-icon .dash-icon { width:18px; height:18px; }
+.application-view dl,.application-dialog dl { margin:16px 0 0; display:grid; gap:12px; }
+.application-view dt,.application-dialog dt { font-size:11px; letter-spacing:.4px; color:var(--dash-muted); margin-bottom:5px; }
+.application-view dd,.application-dialog dd { font-size:15px; line-height:1.6; letter-spacing:.3px; margin:0; overflow-wrap:anywhere; }
+.application-edit-value { display:flex; align-items:start; justify-content:space-between; gap:4px; }
+.application-emergency { display:flex; gap:14px; align-items:center; margin-top:14px; background:linear-gradient(120deg,#485e9836,#70798c20); border:1px solid #85899f40; border-radius:14px; padding:14px; }
+.application-contact-avatar { display:grid; place-items:center; width:54px; height:68px; flex-shrink:0; border-radius:12px; background:var(--dash-bg); }
+.application-contact-avatar .dash-icon { width:29px; height:29px; color:var(--dash-muted); }
+.application-emergency strong { font-size:13px; overflow-wrap:anywhere; }
+.application-emergency p { margin-top:4px; font-size:11px; overflow-wrap:anywhere; }
+.application-files > h2 { margin:3px 0 19px; }
+.application-files h3 { font-weight:400; }
+.application-capture { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px; min-height:105px; margin-top:9px; border:1px solid #9396ae66; background:#5d61880d; border-radius:12px; padding:12px; }
+.dashboard-shell .application-primary { display:inline-flex; align-items:center; justify-content:center; gap:8px; background:var(--dash-blue); color:white; padding:8px 18px; border-radius:22px; font-weight:600; font-size:13px; }
+.application-primary .dash-icon { width:17px; height:17px; }
+.application-capture small { font-size:10px; text-align:center; }
+.application-capture-remarks { margin-top:8px !important; }
+.application-documents-heading { margin-top:20px; gap:4px; }
+.dashboard-shell .application-text-button { display:inline-flex; align-items:center; gap:7px; background:transparent; color:var(--dash-blue); padding:4px 0; font-size:12px; text-decoration:none; }
+.application-text-button .dash-icon { width:17px; height:17px; }
+.application-document-list { list-style:none; margin:8px 0 0; padding:0; }
+.application-document-list li { display:flex; align-items:center; gap:14px; min-height:49px; border-bottom:1px solid var(--dash-grid); }
+.application-document-list li:last-child { border:0; }
+.application-document-list li > .dash-icon { width:20px; height:20px; color:var(--dash-blue); }
+.application-document-list li > span { flex:1; overflow-wrap:anywhere; min-width:0; font-size:14px; letter-spacing:.2px; }
+.application-empty-documents { padding:15px 0; }
+.application-actions select { width:100%; margin-top:12px; border:1px solid #9396ae66; border-radius:13px; padding:14px 10px; background:var(--dash-panel); }
+.application-actions option { background:var(--dash-sidebar); }
+.application-links h2 { margin:3px 0 12px; }
+.dashboard-shell .application-links button { display:flex; align-items:center; width:100%; gap:18px; padding:14px 0; background:transparent; border-radius:9px; text-align:left; letter-spacing:.4px; }
+.application-links button .dash-icon { width:19px; height:19px; color:var(--dash-blue); }
+.dashboard-shell .application-links button:hover { background:var(--dash-pill); }
+.application-map { height:112px; border-radius:12px; background:var(--dash-pill); position:relative; overflow:hidden; display:grid; place-items:center; isolation:isolate; }
+.map-road { position:absolute; display:block; height:8px; width:140%; background:var(--dash-sidebar); z-index:-1; }
+.map-road.one { transform:rotate(-16deg); }.map-road.two { transform:rotate(11deg); }.map-road.three { transform:rotate(55deg); }.map-road.four { transform:rotate(-64deg); }
+.map-park { position:absolute; background:#b6d7a3; border-radius:5px; z-index:-1; width:38px; height:25px; }
+.map-park.one { top:10px; left:8%; }.map-park.two { bottom:7px; right:7%; }
+.application-map a { display:inline-flex; align-items:center; gap:8px; color:var(--dash-text); background:var(--dash-sidebar); box-shadow:0 2px 4px #0003; border-radius:24px; padding:8px 18px; text-decoration:none; font-size:13px; }
+.application-map a .dash-icon { width:16px; height:16px; }
+.application-map-empty { font-size:12px; padding:8px; background:var(--dash-sidebar); border-radius:16px; }
+.application-missing { color:var(--dash-muted); font-size:12px; }
+.application-state { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:14px; min-height:380px; text-align:center; }
+.application-state-icon { background:var(--dash-selected); color:var(--dash-blue); padding:15px; border-radius:18px; display:flex; }
+.application-dialog { color:#202127; background:#f8f7fd; border:1px solid #d6d5e4; border-radius:22px; width:min(680px,calc(100vw - 32px)); max-height:85dvh; padding:24px; box-shadow:0 20px 80px #13162740; }
+.application-dialog::backdrop { background:#1c213368; backdrop-filter:blur(4px); }
+.application-dialog h2 { margin:0; font-size:19px; }
+.application-dialog button { border:0; background:transparent; cursor:pointer; border-radius:50%; padding:8px 12px; font-size:22px; }
+.application-dialog dt { color:#51535f; }.application-dialog iframe { width:100%; height:60dvh; border:0; margin-top:18px; }.application-document-preview { display:block; max-width:100%; max-height:60dvh; margin:18px auto; object-fit:contain; }
+.application-view [tabindex="-1"] { scroll-margin:20px; outline-offset:5px; }
+@media(max-width:1500px) { .application-columns { grid-template-columns:repeat(2,minmax(0,1fr)); }.application-side { grid-column:2; grid-row:2; }.application-files { grid-column:1; grid-row:2; } }
+@media(max-width:700px) { .application-shell .dash-main { padding:0 12px 20px; }.application-shell .dash-toolbar { padding:12px; }.application-columns { grid-template-columns:minmax(0,1fr); }.application-side,.application-files { grid-column:auto; grid-row:auto; }.application-view .application-profile { padding-bottom:20px; }.application-section-title { gap:8px; }.application-view h2 { font-size:14px; }.application-state { min-height:300px; }.application-emergency { padding:12px; gap:10px; } }
