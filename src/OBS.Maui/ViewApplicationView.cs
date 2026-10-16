@@ -10,6 +10,8 @@ public sealed class ViewApplicationView : ContentView
     private readonly Grid columns = new() { ColumnSpacing = 16, RowSpacing = 14 };
     private readonly Dictionary<string, View> sections = [];
     private readonly List<string> previewFiles = [];
+    private readonly ApplicationRevealState reveal = new();
+    private readonly Dictionary<ApplicationGroup, List<Action>> groupUpdates = [];
     private SessionController? session;
     private IApplicationRecords records = new UnavailableApplicationRecords();
     private CancellationTokenSource? load;
@@ -21,6 +23,7 @@ public sealed class ViewApplicationView : ContentView
 
     public async Task LoadAsync(string applicationNumber)
     {
+        ResetReveal();
         if (session?.Current is not { } staff || !session.ProtectedWorkAllowed) return;
         Clear(); number = applicationNumber.Trim();
         if (number.Length == 0) { ShowState("Search by application number to view an applicant’s complete record."); return; }
@@ -38,6 +41,7 @@ public sealed class ViewApplicationView : ContentView
     }
     public void Clear()
     {
+        ResetReveal(); groupUpdates.Clear();
         load?.Cancel(); load = null; reply = null; sections.Clear(); columns.Clear();
         foreach (var path in previewFiles) { try { File.Delete(path); } catch (IOException) { } }
         previewFiles.Clear();
@@ -56,12 +60,77 @@ public sealed class ViewApplicationView : ContentView
         return border;
     }
     private static DashboardIcon Icon(string kind, double size = 18) => new() { Kind = kind, Tint = Color.FromArgb("#485E98"), WidthRequest = size, HeightRequest = size, VerticalOptions = LayoutOptions.Center, HorizontalOptions = LayoutOptions.Center };
-    private static Grid IconButton(string icon, string label, Action? action, string? unavailable = null)
+    private Grid IconButton(string icon, string label, Action? action, string? unavailable = null, ApplicationGroup? group = null, bool toggle = false)
     {
         var grid = new Grid { WidthRequest = 30, HeightRequest = 32, VerticalOptions = LayoutOptions.Center };
         var button = new Button { BackgroundColor = Colors.Transparent, Padding = 0, MinimumWidthRequest = 30, MinimumHeightRequest = 30, IsEnabled = action is not null };
         SemanticProperties.SetDescription(button, label); ToolTipProperties.SetText(button, unavailable ?? label);
-        button.Clicked += (_, _) => action?.Invoke(); grid.Add(button); grid.Add(Icon(icon)); return grid;
+        button.Clicked += (_, _) => action?.Invoke(); grid.Add(button); var glyph = Icon(icon); grid.Add(glyph);
+        if (group is { } g) Watch(g, () =>
+        {
+            var shown = reveal.IsVisible(g);
+            var description = toggle ? (shown ? "Hide " : "Show ") + label : "View " + label;
+            button.IsEnabled = toggle || reveal.DetailsAllowed(g);
+            glyph.Kind = toggle ? (shown ? "eye-off" : "eye") : icon;
+            SemanticProperties.SetDescription(button, description);
+            ToolTipProperties.SetText(button, !toggle && !shown ? "Show " + label + " first" : description);
+        });
+        return grid;
+    }
+    private void Watch(ApplicationGroup group, Action update)
+    {
+        if (!groupUpdates.TryGetValue(group, out var updates)) groupUpdates[group] = updates = [];
+        updates.Add(update); update();
+    }
+    private void ResetReveal()
+    {
+        reveal.Reset();
+        foreach (var updates in groupUpdates.Values) foreach (var update in updates) update();
+    }
+    private void Toggle(ApplicationGroup group, string title)
+    {
+        reveal.Toggle(group);
+        foreach (var update in groupUpdates[group]) update();
+        SemanticScreenReader.Default.Announce(title + (reveal.IsVisible(group) ? " shown" : " hidden"));
+    }
+    private View PrivateText(ApplicationGroup group, string value, double size = 15, bool bold = false, bool muted = false, string prefix = "")
+    {
+        var label = Text("", size, bold);
+        var blur = new GraphicsView { WidthRequest = 128, HeightRequest = size * 1.5, HorizontalOptions = LayoutOptions.Start, VerticalOptions = LayoutOptions.Center, InputTransparent = true };
+        blur.Drawable = new HiddenValue(() => label.TextColor);
+        SemanticProperties.SetDescription(blur, "Hidden");
+        label.PropertyChanged += (_, args) => { if (args.PropertyName == nameof(Label.TextColor)) blur.Invalidate(); };
+        var valueArea = new Grid(); valueArea.Add(label); valueArea.Add(blur);
+        Watch(group, () =>
+        {
+            var shown = reveal.IsVisible(group);
+            label.Text = reveal.Display(group, value);
+            label.IsVisible = shown; blur.IsVisible = !shown;
+            label.SetDynamicResource(Label.TextColorProperty, !shown || muted ? "DashMuted" : "DashText");
+            SemanticProperties.SetDescription(label, shown ? null : "Hidden");
+        });
+        if (prefix.Length == 0) return valueArea;
+        var row = new Grid { ColumnDefinitions = [new(GridLength.Auto), new(GridLength.Star)] };
+        row.Add(Text(prefix, size, bold, muted)); row.Add(valueArea, 1); return row;
+    }
+    // Soft, text-like shapes contain no applicant data and never vary with its length.
+    private sealed class HiddenValue(Func<Color> tint) : IDrawable
+    {
+        public void Draw(ICanvas canvas, RectF dirtyRect)
+        {
+            var color = tint();
+            var heights = new[] { 7f, 10f, 8f, 6f, 9f, 7f, 10f, 8f };
+            for (var spread = 6; spread >= 0; spread--)
+            {
+                canvas.FillColor = color.WithAlpha(.045f);
+                for (var i = 0; i < heights.Length; i++)
+                {
+                    var height = heights[i];
+                    canvas.FillRoundedRectangle(7 + i * 14 - spread * .65f, (dirtyRect.Height - height) / 2 - spread * .65f,
+                        11 + spread * 1.3f, height + spread * 1.3f, 3 + spread * .65f);
+                }
+            }
+        }
     }
     private static Button Button(string title, Action action, bool primary = false)
     {
@@ -80,48 +149,50 @@ public sealed class ViewApplicationView : ContentView
         if (retry) { var button = Button("Try again", () => _ = LoadAsync(number), true); button.HorizontalOptions = LayoutOptions.Center; content.Add(button); }
         Content = Card(content);
     }
-    private View Heading(string title, string icon, Action view)
+    private View Heading(string title, string icon, ApplicationGroup group, Action view)
     {
-        var grid = new Grid { ColumnDefinitions = [new(34), new(GridLength.Star), new(30)], ColumnSpacing = 10 };
+        var grid = new Grid { ColumnDefinitions = [new(34), new(GridLength.Star), new(30), new(30)], ColumnSpacing = 10 };
         var tile = new Border { Content = Icon(icon), BackgroundColor = Color.FromArgb("#18485E98"), StrokeThickness = 0, StrokeShape = new RoundRectangle { CornerRadius = 11 }, HeightRequest = 34 };
         grid.Add(tile); var label = Text(title, 15, true); label.VerticalOptions = LayoutOptions.Center; grid.Add(label, 1);
-        grid.Add(IconButton("eye", "View " + title, view), 2); return grid;
+        grid.Add(IconButton("list", title, view, group: group), 2);
+        grid.Add(IconButton("eye", title, () => Toggle(group, title), group: group, toggle: true), 3); return grid;
     }
-    private static View Field(string label, string value, bool edit = false)
+    private View Field(ApplicationGroup group, string label, string value, bool edit = false)
     {
         var stack = new VerticalStackLayout { Spacing = 5 };
         stack.Add(Text(label, 11, muted: true));
-        if (!edit) stack.Add(Text(ApplicationPresentation.Text(value)));
+        if (!edit) stack.Add(PrivateText(group, value));
         else
         {
             var grid = new Grid { ColumnDefinitions = [new(GridLength.Star), new(30)], ColumnSpacing = 3 };
-            grid.Add(Text(ApplicationPresentation.Text(value))); grid.Add(IconButton("pencil", "Edit " + label, null, ApplicationPresentation.EditUnavailable), 1); stack.Add(grid);
+            grid.Add(PrivateText(group, value)); grid.Add(IconButton("pencil", "Edit " + label, null, ApplicationPresentation.EditUnavailable), 1); stack.Add(grid);
         }
         return stack;
     }
     private void Render(ApplicationRecord r)
     {
+        ResetReveal(); groupUpdates.Clear();
         sections.Clear(); columns.Clear();
         var profile = Profile(r);
         var personal = new VerticalStackLayout { Spacing = 12 };
         var bio = new VerticalStackLayout { Spacing = 12 };
         var bioFields = new ApplicationField[] { new("Birth full name", r.Name), new("Birthday", r.Birthday), new("Gender", r.Gender), new("Birthplace", r.Birthplace), new("Blood type", r.BloodType) }.Concat(r.BioFields).ToArray();
-        bio.Add(Heading("Bio Details", "identity", () => Details("Bio Details", bioFields)));
-        bio.Add(Field("Birth full name", r.Name, true));
-        bio.Add(Field("Birthday / Age / Gender", ApplicationPresentation.Join(" · ", ApplicationPresentation.Birthday(r.Birthday, DateOnly.FromDateTime(DashboardPresentation.LocalTime.DateTime)), ApplicationPresentation.Text(r.Gender))));
-        bio.Add(Field("Birthplace", r.Birthplace)); bio.Add(Field("Blood type", r.BloodType));
+        bio.Add(Heading("Bio Details", "identity", ApplicationGroup.Bio, () => Details(ApplicationGroup.Bio, "Bio Details", bioFields)));
+        bio.Add(Field(ApplicationGroup.Bio, "Birth full name", r.Name, true));
+        bio.Add(Field(ApplicationGroup.Bio, "Birthday / Age / Gender", ApplicationPresentation.Join(" · ", ApplicationPresentation.Birthday(r.Birthday, DateOnly.FromDateTime(DashboardPresentation.LocalTime.DateTime)), ApplicationPresentation.Text(r.Gender))));
+        bio.Add(Field(ApplicationGroup.Bio, "Birthplace", r.Birthplace)); bio.Add(Field(ApplicationGroup.Bio, "Blood type", r.BloodType));
         sections["bio"] = Card(bio); personal.Add(sections["bio"]);
         var emergency = new VerticalStackLayout { Spacing = 14 };
-        emergency.Add(Heading("Emergency Contact Information", "phone", () => Details("Emergency Contact Information", [new("Name", r.EmergencyName), new("Relationship", r.EmergencyRelationship), new("Phone", r.EmergencyPhone), new("Address", r.EmergencyAddress)])));
+        emergency.Add(Heading("Emergency Contact Information", "phone", ApplicationGroup.Emergency, () => Details(ApplicationGroup.Emergency, "Emergency Contact Information", [new("Name", r.EmergencyName), new("Relationship", r.EmergencyRelationship), new("Phone", r.EmergencyPhone), new("Address", r.EmergencyAddress)])));
         var person = new Grid { ColumnDefinitions = [new(54), new(GridLength.Star)], ColumnSpacing = 14 };
         var avatar = new Border { Content = Icon("user", 29), HeightRequest = 68, StrokeThickness = 0, StrokeShape = new RoundRectangle { CornerRadius = 12 } }; avatar.SetDynamicResource(BackgroundColorProperty, "DashBackground"); person.Add(avatar);
         var contact = new VerticalStackLayout { Spacing = 5, VerticalOptions = LayoutOptions.Center };
-        contact.Add(Text(ApplicationPresentation.Text(r.EmergencyName), 13, true)); contact.Add(Text(ApplicationPresentation.Join(" · ", ApplicationPresentation.Text(r.EmergencyPhone), r.EmergencyRelationship), 11)); contact.Add(Text(ApplicationPresentation.Text(r.EmergencyAddress), 11, muted: true)); person.Add(contact, 1);
+        contact.Add(PrivateText(ApplicationGroup.Emergency, r.EmergencyName, 13, true)); contact.Add(PrivateText(ApplicationGroup.Emergency, ApplicationPresentation.Join(" · ", ApplicationPresentation.Text(r.EmergencyPhone), r.EmergencyRelationship), 11)); contact.Add(PrivateText(ApplicationGroup.Emergency, r.EmergencyAddress, 11, muted: true)); person.Add(contact, 1);
         var contactCard = Card(person, 14); contactCard.BackgroundColor = Color.FromArgb("#28485E98"); emergency.Add(contactCard);
         sections["emergency"] = Card(emergency); personal.Add(sections["emergency"]);
         var education = new VerticalStackLayout { Spacing = 12 };
-        education.Add(Heading("Educational Information", "education", () => Details("Educational Information", [new("Educational attainment", r.Attainment), new("Course", r.Course), new("School", r.School)])));
-        education.Add(Field("Educational attainment", ApplicationPresentation.Join(" · ", ApplicationPresentation.Text(r.Attainment), r.Course), true)); education.Add(Field("School / Year graduated", ApplicationPresentation.Text(r.School) + " · Year not provided")); education.Add(Field("Address", ""));
+        education.Add(Heading("Educational Information", "education", ApplicationGroup.Education, () => Details(ApplicationGroup.Education, "Educational Information", [new("Educational attainment", r.Attainment), new("Course", r.Course), new("School", r.School)])));
+        education.Add(Field(ApplicationGroup.Education, "Educational attainment", ApplicationPresentation.Join(" · ", ApplicationPresentation.Text(r.Attainment), r.Course), true)); education.Add(Field(ApplicationGroup.Education, "School / Year graduated", ApplicationPresentation.Text(r.School) + " · Year not provided")); education.Add(Field(ApplicationGroup.Education, "Address", ""));
         sections["education"] = Card(education); personal.Add(sections["education"]);
         var files = Files(r);
         var side = new VerticalStackLayout { Spacing = 12 };
@@ -130,7 +201,7 @@ public sealed class ViewApplicationView : ContentView
         picker.Items.Add("Refresh application"); picker.Items.Add("View complete account");
         picker.SetDynamicResource(Picker.TextColorProperty, "DashText");
         if (session?.Current?.Allows("VCARDHOLDERUPDATE") == true) picker.Items.Add("Cardholder update workflow");
-        picker.SelectedIndexChanged += (_, _) => { var choice = picker.SelectedIndex; if (choice < 0) return; picker.SelectedIndex = -1; if (choice == 0) _ = LoadAsync(number); else if (choice == 1) Details("Account", r.AccountFields); else if (session?.Current?.Allows("VCARDHOLDERUPDATE") == true) WorkflowRequested?.Invoke(OBS.Core.Navigation.Entries.Single(entry => entry.Title == "Cardholder Update")); };
+        picker.SelectedIndexChanged += async (_, _) => { var choice = picker.SelectedIndex; if (choice < 0) return; picker.SelectedIndex = -1; if (choice == 0) _ = LoadAsync(number); else if (choice == 1) { if (reveal.DetailsAllowed(ApplicationGroup.Profile)) Details(ApplicationGroup.Profile, "Account", r.AccountFields); else if (Window?.Page is Page page) await page.DisplayAlert("Account", "Show the applicant profile first to view the complete account.", "Close"); } else if (session?.Current?.Allows("VCARDHOLDERUPDATE") == true) WorkflowRequested?.Invoke(OBS.Core.Navigation.Entries.Single(entry => entry.Title == "Cardholder Update")); };
         actions.Add(Card(picker, new Thickness(8, 0))); side.Add(Card(actions));
         var links = new VerticalStackLayout { Spacing = 2 }; links.Add(Text("Quick Links", 15, true));
         foreach (var (title, id, icon) in new[] { ("Account", "account", "user"), ("Bio Details", "bio", "identity"), ("Emergency Contact", "emergency", "phone"), ("Educational Info", "education", "education"), ("Biometrics", "biometrics", "capture"), ("Documents", "documents", "document") })
@@ -149,15 +220,20 @@ public sealed class ViewApplicationView : ContentView
         var avatar = new Grid { WidthRequest = 88, HeightRequest = 88, Margin = new Thickness(14, -38, 0, 12), HorizontalOptions = LayoutOptions.Start };
         var face = new Border { Content = Icon("user", 38), StrokeThickness = 4, StrokeShape = new RoundRectangle { CornerRadius = 44 }, Shadow = new Shadow { Brush = Colors.Black, Opacity = .12f, Offset = new Point(0, 4), Radius = 8 } };
         face.SetDynamicResource(BackgroundColorProperty, "DashPill"); face.SetDynamicResource(Border.StrokeProperty, "DashSidebar");
-        if (reply?.Documents?.FirstOrDefault(file => file.Type.Contains("ICAO", StringComparison.OrdinalIgnoreCase)) is { } photo && ApplicationPresentation.Decode(photo) is { Mime: "image/png" or "image/jpeg" } image)
-            face.Content = new Image { Source = ImageSource.FromStream(() => new MemoryStream(image.Bytes)), Aspect = Aspect.AspectFill };
+        Watch(ApplicationGroup.Profile, () =>
+        {
+            if (face.Content is Image previous) previous.Source = null;
+            face.Content = Icon("user", 38);
+            if (reveal.IsVisible(ApplicationGroup.Profile) && reply?.Documents?.FirstOrDefault(file => file.Type.Contains("ICAO", StringComparison.OrdinalIgnoreCase)) is { } photo && ApplicationPresentation.Decode(photo) is { Mime: "image/png" or "image/jpeg" } image)
+                face.Content = new Image { Source = ImageSource.FromStream(() => new MemoryStream(image.Bytes)), Aspect = Aspect.AspectFill };
+        });
         avatar.Add(face); avatar.Add(IconButton("camera", "Change applicant photo", null, ApplicationPresentation.EditUnavailable)); content.Add(avatar);
-        var name = new Grid { ColumnDefinitions = [new(GridLength.Star), new(30)], ColumnSpacing = 6, Margin = new Thickness(0, 2, 0, 10) };
-        name.Add(Text(ApplicationPresentation.Text(r.Name), 22, true)); name.Add(IconButton("pencil", "Edit applicant name", null, ApplicationPresentation.EditUnavailable), 1); content.Add(name);
-        foreach (var (icon, value) in new[] { ("hash", "Application Number: " + r.Number), ("mail", "Email: " + ApplicationPresentation.Text(r.Email)), ("phone", "Phone: " + ApplicationPresentation.Text(r.Phone)) })
+        var name = new Grid { ColumnDefinitions = [new(GridLength.Star), new(30), new(30)], ColumnSpacing = 6, Margin = new Thickness(0, 2, 0, 10) };
+        name.Add(Text(ApplicationPresentation.Text(r.Name), 22, true)); name.Add(IconButton("pencil", "Edit applicant name", null, ApplicationPresentation.EditUnavailable), 1); name.Add(IconButton("eye", "Profile", () => Toggle(ApplicationGroup.Profile, "Profile"), group: ApplicationGroup.Profile, toggle: true), 2); content.Add(name);
+        foreach (var (icon, caption, value) in new[] { ("hash", "Application Number: ", r.Number), ("mail", "Email: ", r.Email), ("phone", "Phone: ", r.Phone) })
         {
             var row = new Grid { ColumnDefinitions = [new(15), new(GridLength.Star)], ColumnSpacing = 8, Margin = new Thickness(0, 4) };
-            row.Add(Icon(icon, 15)); row.Add(Text(value, 12, muted: true), 1); content.Add(row);
+            row.Add(Icon(icon, 15)); row.Add(icon == "hash" ? Text(caption + value, 12, muted: true) : PrivateText(ApplicationGroup.Profile, value, 12, muted: true, prefix: caption), 1); content.Add(row);
         }
         var badges = new Grid { ColumnDefinitions = [new(GridLength.Star), new(GridLength.Star)], ColumnSpacing = 8, Margin = new Thickness(0, 14, 0, 16) };
         for (var i = 0; i < 2; i++)
@@ -168,14 +244,14 @@ public sealed class ViewApplicationView : ContentView
         }
         content.Add(badges);
         var line = new BoxView { HeightRequest = 1, Margin = new Thickness(0, 0, 0, 10) }; line.SetDynamicResource(BoxView.ColorProperty, "DashPill"); content.Add(line);
-        var address = new Grid { ColumnDefinitions = [new(GridLength.Star), new(30)], Margin = new Thickness(0, 0, 0, 6) }; address.Add(Text("Address", 13, true)); address.Add(IconButton("pencil", "Edit address", null, ApplicationPresentation.EditUnavailable), 1); content.Add(address);
-        var valueLabel = Text(ApplicationPresentation.Text(r.Address), 12); valueLabel.Margin = new Thickness(0, 0, 0, 12); content.Add(valueLabel);
+        var address = new Grid { ColumnDefinitions = [new(GridLength.Star), new(30), new(30)], Margin = new Thickness(0, 0, 0, 6) }; address.Add(Text("Address", 13, true)); address.Add(IconButton("pencil", "Edit address", null, ApplicationPresentation.EditUnavailable), 1); address.Add(IconButton("eye", "Address", () => Toggle(ApplicationGroup.Address, "Address"), group: ApplicationGroup.Address, toggle: true), 2); content.Add(address);
+        var valueLabel = PrivateText(ApplicationGroup.Address, r.Address, 12); valueLabel.Margin = new Thickness(0, 0, 0, 12); content.Add(valueLabel);
         var map = new Grid { HeightRequest = 112, IsClippedToBounds = true };
         map.SetDynamicResource(BackgroundColorProperty, "DashPill");
         foreach (var rotation in new[] { -16d, 11d, 55d, -64d }) { var road = new BoxView { HeightRequest = 7, Rotation = rotation, VerticalOptions = LayoutOptions.Center, InputTransparent = true }; road.SetDynamicResource(BoxView.ColorProperty, "DashSidebar"); map.Add(road); }
         map.Add(new BoxView { Color = Color.FromArgb("#B6D7A3"), WidthRequest = 38, HeightRequest = 25, CornerRadius = 5, HorizontalOptions = LayoutOptions.End, VerticalOptions = LayoutOptions.End, Margin = 8 });
-        var mapButton = Button("View Map", async () => { if (session?.ProtectedWorkAllowed == true) await Launcher.Default.OpenAsync(ApplicationPresentation.MapUrl(r.Address)); });
-        mapButton.IsEnabled = !string.IsNullOrWhiteSpace(r.Address); mapButton.HorizontalOptions = LayoutOptions.Center; mapButton.VerticalOptions = LayoutOptions.Center; mapButton.SetDynamicResource(BackgroundColorProperty, "DashSidebar"); map.Add(mapButton);
+        var mapButton = Button("View Map", async () => { if (reveal.IsVisible(ApplicationGroup.Address) && session?.ProtectedWorkAllowed == true) await Launcher.Default.OpenAsync(ApplicationPresentation.MapUrl(r.Address)); });
+        Watch(ApplicationGroup.Address, () => mapButton.IsEnabled = reveal.IsVisible(ApplicationGroup.Address) && !string.IsNullOrWhiteSpace(r.Address)); mapButton.HorizontalOptions = LayoutOptions.Center; mapButton.VerticalOptions = LayoutOptions.Center; mapButton.SetDynamicResource(BackgroundColorProperty, "DashSidebar"); map.Add(mapButton);
         content.Add(new Border { Content = map, StrokeThickness = 0, StrokeShape = new RoundRectangle { CornerRadius = 12 } });
         var card = Card(content, new Thickness(15, 15, 15, 42)); sections["account"] = card; return card;
     }
@@ -242,9 +318,9 @@ public sealed class ViewApplicationView : ContentView
         if (parent is ScrollView scroll) await scroll.ScrollToAsync(target, ScrollToPosition.Center, true);
         SemanticScreenReader.Default.Announce(id == "bio" ? "Bio Details" : id);
     }
-    private async void Details(string title, IReadOnlyList<ApplicationField> fields)
+    private async void Details(ApplicationGroup group, string title, IReadOnlyList<ApplicationField> fields)
     {
-        if (session?.ProtectedWorkAllowed == true && Window?.Page is Page page)
-            await page.DisplayAlert(title, string.Join("\n\n", fields.Select(field => field.Label + "\n" + ApplicationPresentation.Text(field.Value))), "Close");
+        if (reveal.DetailsAllowed(group) && session?.ProtectedWorkAllowed == true && Window?.Page is Page page)
+            await page.DisplayAlert(title, string.Join("\n\n", fields.Select(field => field.Label + "\n" + reveal.DisplayField(group, field))), "Close");
     }
 }

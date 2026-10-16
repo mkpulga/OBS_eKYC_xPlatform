@@ -92,6 +92,7 @@ public static class DashboardPresentation
         "hash" => "M9 3L7 21 M17 3L15 21 M4 9H21 M3 15H20",
         "pencil" => "M3 17L17 3L21 7L7 21H3Z M14 6L18 10",
         "eye" => "M2 12C7 3 17 3 22 12C17 21 7 21 2 12Z M12 9A3 3 0 1 1 12 15A3 3 0 1 1 12 9",
+        "eye-off" => "M2 12C7 3 17 3 22 12C17 21 7 21 2 12Z M12 9A3 3 0 1 1 12 15A3 3 0 1 1 12 9 M3 3L21 21",
         "education" => "M2 9L12 4L22 9L12 14Z M6 11V17C10 20 14 20 18 17V11 M22 9V16",
         "document" => "M5 2H14L20 8V22H5Z M14 2V8H20 M8 12H17 M8 16H17",
         "attachment" => "M8 12L16 4C22 -2 26 5 20 11L10 21C4 27 -2 18 4 12L14 2 M7 15L17 5",
