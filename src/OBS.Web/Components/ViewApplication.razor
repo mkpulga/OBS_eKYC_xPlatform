@@ -1,0 +1,187 @@
+@implements IAsyncDisposable
+@inject IApplicationRecords Applications
+@inject SessionController Session
+@inject IJSRuntime JS
+
+@code {
+    [Parameter] public string Number { get; set; } = "";
+    [Parameter] public EventCallback<NavigationEntry> OnWorkflow { get; set; }
+    private ApplicationReply? reply;
+    private bool loading, disposed, showDialog;
+    private string? loadedNumber, dialogTitle, previewUrl, previewMime, previewName, documentMessage;
+    private string action = "";
+    private IReadOnlyList<ApplicationField> dialogFields = [];
+    private CancellationTokenSource? load;
+    private ElementReference dialog;
+    private string CaptureReason => new BlockedCaptureAdapter(ClientPlatform.Web, CaptureKind.Fingerprint).Availability.Reason;
+    private bool CanUpdate => Session.Current?.Allows("VCARDHOLDERUPDATE") == true;
+    private string? Photo => reply?.Documents?.FirstOrDefault(d => d.Type.Contains("ICAO", StringComparison.OrdinalIgnoreCase)) is { } file && ApplicationPresentation.Decode(file) is { Mime: "image/png" or "image/jpeg" } image ? $"data:{image.Mime};base64,{Convert.ToBase64String(image.Bytes)}" : null;
+    private static readonly (string Title, string Id, string Icon)[] Links = [("Account", "account", "user"), ("Bio Details", "bio", "identity"), ("Emergency Contact", "emergency", "phone"), ("Educational Info", "education", "education"), ("Biometrics", "biometrics", "capture"), ("Documents", "documents", "document")];
+    protected override async Task OnParametersSetAsync()
+    {
+        if (loadedNumber == Number) return;
+        loadedNumber = Number;
+        if (!string.IsNullOrWhiteSpace(Number)) await LoadAsync();
+    }
+    private async Task LoadAsync()
+    {
+        if (disposed || Session.Current is not { } staff || !Session.ProtectedWorkAllowed) return;
+        load?.Cancel();
+        var current = load = new CancellationTokenSource();
+        reply = null; loading = true;
+        await CloseDialog();
+        try
+        {
+            var result = await Applications.FindAsync(staff, Number, current.Token);
+            if (!disposed && !current.IsCancellationRequested && Session.Current?.Email == staff.Email && Session.ProtectedWorkAllowed) reply = result;
+        }
+        finally { if (load == current) { loading = false; load = null; } current.Dispose(); }
+    }
+    private RenderFragment EditButton(string label) => @<button class="dash-icon-button application-edit" disabled title="@ApplicationPresentation.EditUnavailable" aria-label="@label"><DashboardIcon Name="pencil" /></button>;
+    private RenderFragment SectionHeading(string title, string icon, string id, Action view) => @<div class="application-section-title"><span class="application-heading-icon"><DashboardIcon Name="@icon" /></span><h2 id="@id">@title</h2><button class="dash-icon-button" @onclick="view" aria-label="@($"View {title}")"><DashboardIcon Name="eye" /></button></div>;
+    private static IReadOnlyList<ApplicationField> Bio(ApplicationRecord r) => new ApplicationField[] { new("Birth full name", r.Name), new("Birthday", r.Birthday), new("Gender", r.Gender), new("Birthplace", r.Birthplace), new("Blood type", r.BloodType) }.Concat(r.BioFields).ToArray();
+    private static IReadOnlyList<ApplicationField> Emergency(ApplicationRecord r) => [new("Name", r.EmergencyName), new("Relationship", r.EmergencyRelationship), new("Phone", r.EmergencyPhone), new("Address", r.EmergencyAddress)];
+    private static IReadOnlyList<ApplicationField> Education(ApplicationRecord r) => [new("Educational attainment", r.Attainment), new("Course", r.Course), new("School", r.School)];
+    private void ShowDetails(string title, IReadOnlyList<ApplicationField> fields) { dialogTitle = title; dialogFields = fields; showDialog = true; }
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (showDialog) { showDialog = false; await JS.InvokeVoidAsync("obsApplication.showDialog", dialog); }
+    }
+    private async Task OpenDocument(ApplicationDocument file)
+    {
+        await CloseDialog();
+        dialogTitle = ApplicationPresentation.DocumentName(file);
+        if (ApplicationPresentation.Decode(file) is { } data)
+        {
+            previewUrl = await JS.InvokeAsync<string>("obsApplication.documentUrl", data.Bytes, data.Mime);
+            previewMime = data.Mime; previewName = Path.GetFileNameWithoutExtension(dialogTitle) + data.Extension;
+        }
+        else documentMessage = "A preview is not available for this document. PDF, PNG and JPEG attachments are supported.";
+        showDialog = true;
+    }
+    private async Task CloseDialog()
+    {
+        if (previewUrl is not null) await JS.InvokeVoidAsync("obsApplication.releaseUrl", previewUrl);
+        dialogTitle = previewUrl = previewMime = previewName = documentMessage = null;
+    }
+    private Task DialogKey(KeyboardEventArgs e) => e.Key == "Escape" ? CloseDialog() : Task.CompletedTask;
+    private async Task Scroll(string id) => await JS.InvokeVoidAsync("obsApplication.scrollTo", "application-" + id);
+    private async Task Act()
+    {
+        var choice = action; action = "";
+        if (choice == "refresh") await LoadAsync();
+        else if (choice == "account" && reply?.Record is { } record) ShowDetails("Account", record.AccountFields);
+        else if (choice == "update" && CanUpdate) await OnWorkflow.InvokeAsync(Navigation.Entries.Single(entry => entry.Title == "Cardholder Update"));
+    }
+    public async ValueTask DisposeAsync()
+    {
+        disposed = true; load?.Cancel(); reply = null;
+        if (previewUrl is not null) { try { await JS.InvokeVoidAsync("obsApplication.releaseUrl", previewUrl); } catch (JSDisconnectedException) { } }
+    }
+}
+
+<div class="application-view" aria-busy="@(loading ? "true" : "false")">
+@if (loading || reply?.Record is not { } record)
+{
+    <section class="dash-card application-state" role="status" aria-live="polite">
+        <span class="application-state-icon"><DashboardIcon Name="identity" /></span>
+        <h1>View Application</h1>
+        <p>@(loading ? "Loading application…" : reply is null ? "Search by application number to view an applicant’s complete record." : ApplicationPresentation.Status(reply.Outcome))</p>
+        @if (!loading && reply is not null && reply.Outcome is not ApplicationOutcome.NotFound and not ApplicationOutcome.NotPermitted and not ApplicationOutcome.InvalidNumber)
+        { <button class="application-primary" @onclick="LoadAsync">Try again</button> }
+    </section>
+}
+else
+{
+    <h1 class="sr-only">View Application @record.Number</h1>
+    <div class="application-columns">
+        <section class="dash-card application-profile" id="application-account" tabindex="-1" aria-label="Applicant account">
+            <div class="application-cover"></div>
+            <div class="application-photo">
+                @if (Photo is { } photo) { <img src="@photo" alt="Applicant profile" /> }
+                else { <DashboardIcon Name="user" /> }
+                <button class="application-camera" disabled title="@ApplicationPresentation.EditUnavailable" aria-label="Change applicant photo"><DashboardIcon Name="camera" /></button>
+            </div>
+            <div class="application-name"><h2>@ApplicationPresentation.Text(record.Name)</h2>@EditButton("Edit applicant name")</div>
+            <div class="application-contact"><DashboardIcon Name="hash" /><button @onclick='() => ShowDetails("Account", record.AccountFields)'>Application Number: @record.Number</button></div>
+            <div class="application-contact"><DashboardIcon Name="mail" /><span>Email: @ApplicationPresentation.Text(record.Email)</span></div>
+            <div class="application-contact"><DashboardIcon Name="phone" /><span>Phone: @ApplicationPresentation.Text(record.Phone)</span></div>
+            <div class="application-badges">
+                <div><small>Account</small><strong>@ApplicationPresentation.Text(record.Status)</strong></div>
+                <div><small>Card</small><strong>Not provided</strong></div>
+            </div>
+            <div class="application-address"><div class="application-section-title"><h3>Address</h3>@EditButton("Edit address")</div><p>@ApplicationPresentation.Text(record.Address)</p></div>
+            <div class="application-map">
+                <span class="map-park one"></span><span class="map-park two"></span><span class="map-road one"></span><span class="map-road two"></span><span class="map-road three"></span><span class="map-road four"></span>
+                @if (!string.IsNullOrWhiteSpace(record.Address))
+                { <a href="@ApplicationPresentation.MapUrl(record.Address)" target="_blank" rel="noopener noreferrer" aria-label="View applicant address in Google Maps"><DashboardIcon Name="pin" />View Map</a> }
+                else { <span class="application-map-empty">Address not provided</span> }
+            </div>
+        </section>
+        <div class="application-personal">
+            <section class="dash-card application-section" id="application-bio" tabindex="-1" aria-labelledby="application-bio-title">
+                @SectionHeading("Bio Details", "identity", "application-bio-title", () => ShowDetails("Bio Details", Bio(record)))
+                <dl>
+                    <div><dt>Birth full name</dt><dd class="application-edit-value">@ApplicationPresentation.Text(record.Name)@EditButton("Edit bio details")</dd></div>
+                    <div><dt>Birthday / Age / Gender</dt><dd>@ApplicationPresentation.Birthday(record.Birthday, DateOnly.FromDateTime(DashboardPresentation.LocalTime.DateTime)) · @ApplicationPresentation.Text(record.Gender)</dd></div>
+                    <div><dt>Birthplace</dt><dd>@ApplicationPresentation.Text(record.Birthplace)</dd></div>
+                    <div><dt>Blood type</dt><dd>@ApplicationPresentation.Text(record.BloodType)</dd></div>
+                </dl>
+            </section>
+            <section class="dash-card application-section" id="application-emergency" tabindex="-1" aria-labelledby="application-emergency-title">
+                @SectionHeading("Emergency Contact Information", "phone", "application-emergency-title", () => ShowDetails("Emergency Contact Information", Emergency(record)))
+                <div class="application-emergency"><span class="application-contact-avatar"><DashboardIcon Name="user" /></span><div><strong>@ApplicationPresentation.Text(record.EmergencyName)</strong><p>@ApplicationPresentation.Join(" · ", ApplicationPresentation.Text(record.EmergencyPhone), record.EmergencyRelationship)</p><p>@ApplicationPresentation.Text(record.EmergencyAddress)</p></div></div>
+            </section>
+            <section class="dash-card application-section" id="application-education" tabindex="-1" aria-labelledby="application-education-title">
+                @SectionHeading("Educational Information", "education", "application-education-title", () => ShowDetails("Educational Information", Education(record)))
+                <dl>
+                    <div><dt>Educational attainment</dt><dd class="application-edit-value">@ApplicationPresentation.Join(" · ", ApplicationPresentation.Text(record.Attainment), record.Course)@EditButton("Edit educational information")</dd></div>
+                    <div><dt>School / Year graduated</dt><dd>@ApplicationPresentation.Text(record.School) · <span class="application-missing">Year not provided</span></dd></div>
+                    <div><dt>Address</dt><dd class="application-missing">Not provided</dd></div>
+                </dl>
+            </section>
+        </div>
+        <section class="dash-card application-section application-files" aria-labelledby="application-files-title">
+            <h2 id="application-files-title">Biometrics and Documents</h2>
+            <div id="application-biometrics" tabindex="-1"><h3>Biometrics</h3><div class="application-capture"><button class="application-primary" disabled title="@CaptureReason"><DashboardIcon Name="capture" />Capture</button><small>@CaptureReason</small></div>
+                @if (!string.IsNullOrWhiteSpace(record.BiometricsRemarks)) { <p class="application-capture-remarks">@record.BiometricsRemarks</p> }
+            </div>
+            <div id="application-documents" tabindex="-1">
+                <div class="application-section-title application-documents-heading"><h3>Documents</h3><button class="application-text-button" disabled title="@ApplicationPresentation.AttachmentUnavailable"><DashboardIcon Name="attachment" />Add Attachment</button></div>
+                @if (reply.DocumentError is { } error) { <p role="status">@error <button class="application-text-button" @onclick="LoadAsync">Retry</button></p> }
+                else if (reply.Documents is not { Count: > 0 }) { <p class="application-empty-documents">No documents attached to this application.</p> }
+                else
+                {
+                    <ul class="application-document-list">
+                    @foreach (var file in reply.Documents)
+                    {
+                        <li><DashboardIcon Name="document" /><span title="@file.Type">@ApplicationPresentation.DocumentName(file)</span><button class="dash-icon-button" @onclick="() => OpenDocument(file)" aria-label="@($"Open {ApplicationPresentation.DocumentName(file)}")"><DashboardIcon Name="external" /></button></li>
+                    }
+                    </ul>
+                }
+            </div>
+        </section>
+        <div class="application-side">
+            <section class="dash-card application-section application-actions"><h2>Actions</h2><label class="sr-only" for="application-action">Select an action</label><select id="application-action" @bind="action" @bind:after="Act"><option value="">Select an action</option><option value="refresh">Refresh application</option><option value="account">View complete account</option>@if (CanUpdate) { <option value="update">Cardholder update workflow</option> }</select></section>
+            <nav class="dash-card application-section application-links" aria-label="Application quick links"><h2>Quick Links</h2>
+                @foreach (var link in Links)
+                { <button @onclick="() => Scroll(link.Id)"><DashboardIcon Name="@link.Icon" /><span>@link.Title</span></button> }
+            </nav>
+        </div>
+    </div>
+}
+</div>
+@if (dialogTitle is not null)
+{
+    <dialog class="application-dialog" @ref="dialog" @onkeydown="DialogKey">
+        <div class="application-section-title"><h2>@dialogTitle</h2><button class="dash-icon-button" @onclick="CloseDialog" aria-label="Close details">×</button></div>
+        @if (previewUrl is not null)
+        {
+            @if (previewMime == "application/pdf") { <iframe title="@dialogTitle" src="@previewUrl" sandbox></iframe> }
+            else { <img class="application-document-preview" src="@previewUrl" alt="@dialogTitle" /> }
+            <a class="application-text-button" href="@previewUrl" download="@previewName">Download document</a>
+        }
+        else if (documentMessage is not null) { <p role="status">@documentMessage</p> }
+        else { <dl>@foreach (var field in dialogFields) { <div><dt>@field.Label</dt><dd>@ApplicationPresentation.Text(field.Value)</dd></div> }</dl> }
+    </dialog>
+}

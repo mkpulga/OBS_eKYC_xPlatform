@@ -15,6 +15,25 @@ The original `app.ini` already ends its base URL in `/obs/api/v1`; the new confi
 | Forgot password | POST `user/forgot/password`, `email,guiinterface="OBS"` | Collection's request example differs in interface casing; source AccountManagementController preserved |
 | Change password | POST `user/change/password`, `username,currentpassword,newpassword`, access bearer | Source checks `CPW`; no invented recovery endpoint |
 
+Workflow requests migrated so far:
+
+| Operation | Source-backed request | Collection difference / remaining verification |
+|---|---|---|
+| Pending cardholder verification queue | GET `cardholder/pending`, access bearer, configured token header; derived from `getAllCardHolderVerification_v1` | Collection lists `Authorization`, `Content-Type`, `x-obs-token` with no response example; row fields come from the `cardholderVerificationCollectionReport.rdlc` `CollectionModel` inventory, not a live payload |
+
+`ApiTransport` accepts GET only for explicit route shapes: `cardholder/pending`, `cardholder/pending/{number}` and `documents/pending/{number}/ALL`. Identifiers accept at most 100 ASCII letters, digits, hyphens or underscores; path traversal, queries and additional segments are rejected. POST keeps its authentication-slice allowlist. Both share the same header, envelope, and failure handling.
+
+View Application uses the source `getCardHolderVerificationSpecific_v1` and `getPendingDocument_v1` routes with access bearer and the configured token header. Its field mapping comes from `cardholderVerificationSpecificDeserializeObject` and `documents`, including nested personal information, present/permanent addresses, emergency contact, education, identification, specimen remarks and document `filename/doctype/docvalue`. Scalar numeric values are retained as text. Security questions/answers are not retained. A successful detail envelope must contain exactly one record whose reference matches the requested number. An empty data array or HTTP 404 is a missing record. Document business code 11 is the source's no-documents outcome; other document failures preserve the loaded applicant with a separate error. Live response and backend permission enforcement still require deployment acceptance.
+
+Pending cardholder differences from source:
+
+- The client checks `PENDINGORS` before sending; without it, no request is made. Backend enforcement remains unverified.
+- Source copied `code`/`message` onto every row and returned a synthetic `909` row on any exception. The migration returns one reply with an explicit outcome: success, not permitted, rejected (missing or non-zero `code`, or a non-2xx status below 500; backend message shown but never logged), connection failure (transport or 5xx), invalid response (non-JSON, missing or non-array `data`, undeserializable rows), or unavailable (invalid configuration).
+- Source sorted with `DateTime.Parse` in the machine culture, so one unparseable `datecreated` failed the whole queue. The migration parses with the invariant culture, keeps oldest-first ordering, and places unparseable dates last. `No` is renumbered 1..n after sorting, as in source.
+- Source reported progress with a 10 ms sleep per row; the migration loads asynchronously with a loading indicator instead.
+- Json.NET coerced JSON numbers into string properties; System.Text.Json does not. If the live payload sends fields such as `cid` or `citizenid` as numbers, the queue currently fails closed as an invalid response. This needs a sanitized live response to resolve.
+- Approve/reject/return and the collection/specific reports are not migrated. The read-only specific-record route is now used by View Application.
+
 The general envelope is `code,message,data[]`. Login data fields mapped from source are `email`, `token.accesstoken`, `password.isfirstlogon`, `password.isexpired`, and `roles.modules/minpassword/maxpassword`. Login refresh and XSRF state comes from exactly `refresh_token` and `XSRF-TOKEN`. Other cookies aren't classified as XSRF. Values retain embedded equals; percent-encoded XSRF is decoded for the request header. That encoding choice needs live comparison against the backend. Refresh data maps `accesstoken`; cookies rotate independently, and absent rotation retains the previous token rather than inventing a new one. Explicit blank tokens invalidate a success.
 
 JSON field matching now preserves the source Newtonsoft case-insensitive behavior: `accessToken` and `accesstoken` name the same mapped field. Undocumented aliases such as `access_token`, object-versus-array changes, or nested refresh token containers are not guessed. Ambiguous duplicate case variants fail closed. Debug refresh diagnostics report only fixed JSON value kinds for the data/item/access/token-container fields; they never print token values or raw JSON.
@@ -25,7 +44,7 @@ The transport keeps HTTP status, `code`, body `status`, and body `error` distinc
 
 Source Login.cs maps HTTP 401 to generic credentials and documents inactive=6 / locked=7. These mappings are unit-tested with synthetic fixtures and remain live-unverified. OTP rejection preserves the pending OTP screen for correction. Session source checks business 3 and 400/401/403; the new refresh adapter ends the session with generic wording for those rejection cases. A generic 400 never identifies takeover. Actual code-3 meaning and 400 handling still need endpoint-specific backend confirmation.
 
-Navigation authority strings: `PENDINGORS`, `VRESIDENCEVERIFICATION`, `VRESIDENCESTATUS`, `VINITIALKYCVALIDATION`, `VINITIALKYCRESULT`, `VINFORMATIONGATHERING`, `VCARDHOLDERUPDATE`, `VCARDHOLDERFORPRINTING`, `UPLOADCARDHOLDERPRINTEDRESULT`, `VISSUEDID`, `VUNCLAIMEDID`, `VUNPRINTEDID`, `ROLEVIEW`, `VIEWUSERS`, and `CPW`. Backend enforcement is documented in source comments but has not been verified by unauthorized requests. Audit permission/action mapping has not yet been finalized.
+Navigation authority strings: `PENDINGORS`, `VRESIDENCEVERIFICATION`, `VRESIDENCESTATUS`, `VINITIALKYCVALIDATION`, `VINITIALKYCRESULT`, `VINFORMATIONGATHERING`, `VCARDHOLDERUPDATE`, `VCARDHOLDERFORPRINTING`, `UPLOADCARDHOLDERPRINTEDRESULT`, `VISSUEDID`, `VUNCLAIMEDID`, `VUNPRINTEDID`, `ROLEVIEW`, `VIEWUSERS`, and `CPW`. Backend enforcement is documented in source comments but has not been verified by unauthorized requests. `PENDINGORS` additionally gates the pending cardholder request client-side. Audit permission/action mapping has not yet been finalized.
 
 The collection confirms route examples for personal/address/contact/emergency/identification updates, documents, workflow queues/actions, lookup cascades, printing results, ID tracking, users, roles, and audit. Those route examples do not establish response schemas, mandatory fields, concurrency semantics, or valid transitions. The `ors - disregard` folder is marked historical and is not used to implement enrollment.
 

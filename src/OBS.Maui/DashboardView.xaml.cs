@@ -16,12 +16,20 @@ public partial class DashboardView : ContentView
     private NavigationEntry? selected;
     private bool dark, collapsed, mobileOpen, canChangePassword;
     private string sessionMessage = "";
+    private SessionController? session;
+    private ICardholderVerification cardholders = new UnavailableCardholderVerification();
+    private CancellationTokenSource? cardholderLoad;
+    private readonly ViewApplicationView application = new();
+    private bool viewApplication;
+    private static readonly NavigationEntry ApplicationNavigation = new("View Application", [CardholderVerificationService.Authority]);
     public event EventHandler? LogoutRequested;
     public event EventHandler? PasswordChangeRequested;
 
     public DashboardView()
     {
         InitializeComponent();
+        ApplicationHost.Content = application;
+        application.WorkflowRequested += entry => { if (modules.Contains(entry)) { selected = entry; viewApplication = false; ShowSelectedPage(); } };
         SearchType.SelectedIndex = 0;
         SearchType.HandlerChanged += OnSearchHandlerChanged;
         SearchEntry.HandlerChanged += OnSearchHandlerChanged;
@@ -43,9 +51,12 @@ public partial class DashboardView : ContentView
         RefreshClock();
     }
 
-    public void Configure(ThemeOptions theme)
+    public void Configure(ThemeOptions theme, SessionController session, ICardholderVerification cardholders, IApplicationRecords? applications = null)
     {
-        ToolbarCityLabel.Text = theme.CityName;
+        this.session = session;
+        this.cardholders = cardholders;
+        application.Configure(session, applications ?? new UnavailableApplicationRecords());
+        ToolbarCityPicker.Items.Clear(); ToolbarCityPicker.Items.Add(theme.CityName); ToolbarCityPicker.SelectedIndex = 0;
         SubtitleLabel.Text = $"{theme.CityName} · Sample data";
     }
 
@@ -57,6 +68,8 @@ public partial class DashboardView : ContentView
         canChangePassword = staff?.Allows("CPW") == true;
         if (staff is null)
         {
+            ClearCardholders();
+            application.Clear(); viewApplication = false;
             selected = null;
             SearchEntry.Text = "";
             NoticeCard.IsVisible = false;
@@ -139,6 +152,8 @@ public partial class DashboardView : ContentView
         ModuleList.Clear(); SidebarActions.Clear(); navigationLabels.Clear(); navigationHeadings.Clear(); navigationButtons.Clear();
         AddHeading("OVERVIEW");
         ModuleList.Add(NavigationRow("Dashboard", "dashboard", OnOverview));
+        if (modules.Any(entry => entry.Authorities.Contains(CardholderVerificationService.Authority)))
+            ModuleList.Add(NavigationRow("View Application", "identity", (_, _) => OpenApplication(""), ApplicationNavigation));
         foreach (var group in modules.Select(DashboardPresentation.Module).GroupBy(item => item.Group))
         {
             AddHeading(group.Key);
@@ -147,9 +162,15 @@ public partial class DashboardView : ContentView
                 var row = NavigationRow(module.Label, module.Icon, (_, _) =>
                 {
                     if (!modules.Contains(module.Entry)) return;
-                    selected = module.Entry; mobileOpen = false; ShowSelectedPage(); ApplyLayout();
+                    selected = module.Entry; viewApplication = false; mobileOpen = false; ShowSelectedPage(); ApplyLayout();
+                    if (CardholderVerificationPresentation.IsQueue(selected)) _ = LoadCardholdersAsync();
                 }, module.Entry, group.Key == "RECORDS" ? "#64B276" : "#519CFF");
                 ModuleList.Add(row);
+            }
+            if (group.Key == "RECORDS")
+            {
+                var audit = NavigationRow("Audit", "audit", (_, _) => { }, new NavigationEntry("Audit", []), "#64B276");
+                audit.IsEnabled = false; ToolTipProperties.SetText(audit, "Audit is not available in this client yet."); ModuleList.Add(audit);
             }
         }
         if (canChangePassword) SidebarActions.Add(NavigationRow("Change password", "lock", (_, _) => PasswordChangeRequested?.Invoke(this, EventArgs.Empty), compact: true));
@@ -186,16 +207,97 @@ public partial class DashboardView : ContentView
     }
     private void ShowSelectedPage()
     {
-        DashboardColumns.IsVisible = selected is null;
-        WorkflowCard.IsVisible = selected is not null;
+        DashboardColumns.IsVisible = selected is null && !viewApplication;
+        WorkflowCard.IsVisible = selected is not null && !viewApplication;
+        ApplicationHost.IsVisible = viewApplication;
         WorkflowTitle.Text = selected?.Title ?? "";
+        CardholderPanel.IsVisible = CardholderVerificationPresentation.IsQueue(selected);
+        WorkflowPlaceholder.IsVisible = !CardholderPanel.IsVisible;
         foreach (var (button, entry) in navigationButtons)
-            if (entry == selected) button.SetDynamicResource(BackgroundColorProperty, "DashSelected");
+            if (viewApplication ? entry == ApplicationNavigation : entry == selected) button.SetDynamicResource(BackgroundColorProperty, "DashSelected");
             else { button.RemoveDynamicResource(BackgroundColorProperty); button.BackgroundColor = Colors.Transparent; }
+    }
+    private void OnRefreshCardholders(object? sender, EventArgs e) => _ = LoadCardholdersAsync();
+    private async Task LoadCardholdersAsync()
+    {
+        if (session?.Current is not { } staff || !session.ProtectedWorkAllowed) return;
+        cardholderLoad?.Cancel();
+        var current = cardholderLoad = new CancellationTokenSource();
+        SetCardholderLoading(true);
+        try
+        {
+            var reply = await cardholders.GetPendingAsync(staff, current.Token);
+            // Ignore replies superseded by a newer refresh or issued for a session that has since ended.
+            // Compare by email: a token refresh replaces the StaffSession instance for the same user.
+            if (current.IsCancellationRequested || session.Current?.Email != staff.Email || !session.ProtectedWorkAllowed) return;
+            ShowCardholders(reply);
+        }
+        finally { if (cardholderLoad == current) SetCardholderLoading(false); }
+    }
+    private void SetCardholderLoading(bool loading)
+    {
+        CardholderLoading.IsRunning = CardholderLoading.IsVisible = loading;
+        CardholderRefresh.IsEnabled = !loading;
+        CardholderRefresh.Text = loading ? "Loading…" : "Refresh";
+        if (loading && CardholderRows.Children.Count == 0) { CardholderStatus.Text = "Loading pending cardholders…"; CardholderStatus.IsVisible = true; }
+    }
+    private void ShowCardholders(PendingReply reply)
+    {
+        CardholderRows.Clear();
+        var status = CardholderVerificationPresentation.Status(reply);
+        CardholderStatus.Text = status ?? "";
+        CardholderStatus.IsVisible = status is not null;
+        CardholderSummary.Text = "Pending card holder verification, oldest first" +
+            (reply.Outcome == PendingOutcome.Success ? $" · {CardholderVerificationPresentation.Count(reply)}" : "");
+        if (reply.Outcome != PendingOutcome.Success) return;
+        foreach (var item in reply.Items) CardholderRows.Add(CreateCardholderRow(item));
+    }
+    private void ClearCardholders()
+    {
+        cardholderLoad?.Cancel(); cardholderLoad = null;
+        CardholderRows.Clear();
+        CardholderStatus.Text = ""; CardholderStatus.IsVisible = false;
+        CardholderSummary.Text = "Pending card holder verification, oldest first";
+        SetCardholderLoading(false);
+    }
+    // One card per cardholder: readable at phone width and on desktop without a wide table.
+    private Border CreateCardholderRow(PendingCardholder item)
+    {
+        Label Caption(string text) => new() { Text = text, Style = (Style)Resources["Caption"] };
+        var name = new Label { Text = $"{item.No}. {CardholderVerificationPresentation.Name(item)}", FontAttributes = FontAttributes.Bold };
+        var status = new Label { Text = CardholderVerificationPresentation.Text(item.status), FontSize = 12, HorizontalOptions = LayoutOptions.End };
+        var header = new Grid { ColumnDefinitions = [new(GridLength.Star), new(GridLength.Auto)], ColumnSpacing = 8 };
+        header.Add(name); header.Add(status, 1);
+        var content = new VerticalStackLayout
+        {
+            Spacing = 3,
+            Children =
+            {
+                header,
+                Caption($"Ref. {CardholderVerificationPresentation.Text(item.referencenumber)} · Mobile {CardholderVerificationPresentation.Text(item.msisdn)}"),
+                Caption(CardholderVerificationPresentation.Text(CardholderVerificationPresentation.Address(item))),
+                Caption($"Created {CardholderVerificationPresentation.Text(item.datecreated)}")
+            }
+        };
+        var row = new Border { Content = content, Padding = new Thickness(14, 10), StrokeThickness = 1, StrokeShape = new RoundRectangle { CornerRadius = 14 } };
+        row.SetDynamicResource(BackgroundColorProperty, "DashSidebar");
+        row.SetDynamicResource(Border.StrokeProperty, "DashLine");
+        SemanticProperties.SetDescription(row, $"{name.Text}, status {status.Text}");
+        var tap = new TapGestureRecognizer();
+        tap.Tapped += (_, _) => OnCardholderTapped(item);
+        row.GestureRecognizers.Add(tap);
+        return row;
+    }
+    private void OnCardholderTapped(PendingCardholder item) => OpenApplication(item.referencenumber ?? "");
+    private void OpenApplication(string number)
+    {
+        if (session?.Current?.Allows(CardholderVerificationService.Authority) != true || !session.ProtectedWorkAllowed) { Notice(ApplicationPresentation.Status(ApplicationOutcome.NotPermitted)); return; }
+        selected = null; viewApplication = true; mobileOpen = false; SearchType.SelectedIndex = 0; SearchEntry.Text = number;
+        NoticeCard.IsVisible = false; ShowSelectedPage(); ApplyLayout(); _ = application.LoadAsync(number);
     }
     private void OnOverview(object? sender, EventArgs e)
     {
-        selected = null; mobileOpen = false; NoticeCard.IsVisible = false; ShowSelectedPage(); ApplyLayout();
+        selected = null; viewApplication = false; mobileOpen = false; NoticeCard.IsVisible = false; ShowSelectedPage(); ApplyLayout();
     }
     private void OnToggleSidebar(object? sender, EventArgs e)
     {
@@ -218,9 +320,12 @@ public partial class DashboardView : ContentView
         foreach (var heading in navigationHeadings) heading.IsVisible = expanded;
         var available = Width - (compact ? 64 : 280);
         var mobile = available < 600;
-        var padding = mobile ? 12 : 36;
+        SearchFields.ColumnDefinitions[1].Width = mobile ? 102 : 146;
+        SearchFields.ColumnDefinitions[3].Width = mobile ? 0 : 32;
+        ((View)SearchFields.Children[3]).IsVisible = !mobile;
+        var padding = mobile ? 12 : viewApplication ? 32 : 36;
         MainContent.Padding = new Thickness(padding, 0, padding, 12);
-        Toolbar.Padding = new Thickness(padding, 12, padding, 20);
+        Toolbar.Padding = new Thickness(padding, viewApplication && !mobile ? 20 : 12, padding, viewApplication && !mobile ? 24 : 20);
         DateBlock.IsVisible = available > 1050;
         Toolbar.ColumnDefinitions[0].Width = DateBlock.IsVisible ? 184 : 0;
         Toolbar.ColumnSpacing = mobile ? 0 : 16;
@@ -289,7 +394,11 @@ public partial class DashboardView : ContentView
     }
     private void Notice(string message) { NoticeLabel.Text = string.IsNullOrEmpty(sessionMessage) ? message : sessionMessage; NoticeCard.IsVisible = true; }
     private void OnDismissNotice(object? sender, EventArgs e) { if (string.IsNullOrEmpty(sessionMessage)) NoticeCard.IsVisible = false; }
-    private void OnSearch(object? sender, EventArgs e) => Notice(string.IsNullOrWhiteSpace(SearchEntry.Text) ? "Enter a value to search." : "Record search is not available yet. This dashboard displays sample data.");
+    private void OnSearch(object? sender, EventArgs e)
+    {
+        if (SearchType.SelectedIndex is 0 or 3) OpenApplication(SearchEntry.Text ?? "");
+        else Notice(string.IsNullOrWhiteSpace(SearchEntry.Text) ? "Enter a value to search." : "This search method is not available yet. Select Application Number.");
+    }
     private void OnScan(object? sender, EventArgs e) => Notice("QR scanning is not available on this dashboard yet.");
     private void OnNotifications(object? sender, EventArgs e) => Notice("No notifications to display. This dashboard displays sample data.");
 }

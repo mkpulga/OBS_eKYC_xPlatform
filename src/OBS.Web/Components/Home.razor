@@ -1,17 +1,20 @@
 @page "/"
 @page "/dashboard"
+@page "/applications"
+@page "/applications/{ApplicationNumber}"
 @page "/error"
 @implements IAsyncDisposable
 @inject SessionController Session
 @inject DeploymentStatus Deployment
 @inject ThemeOptions Theme
 @inject IJSRuntime JS
+@inject NavigationManager Location
 
 @if (Deployment.Error is null && Session.ContractAvailable && Session.ProtectedWorkAllowed && Session.Current is { } dashboardUser)
 {
     <Dashboard Email="@dashboardUser.Email" CityName="@Theme.CityName" Modules="@Navigation.For(dashboardUser).ToArray()"
                CanChangePassword="@dashboardUser.Allows("CPW")" Message="@Session.Message"
-               OnLogout="Logout" OnChangePassword="Session.BeginPasswordChange" />
+               InitialApplicationNumber="@initialApplicationNumber" OnLogout="Logout" OnChangePassword="Session.BeginPasswordChange" />
 }
 else
 {
@@ -71,6 +74,8 @@ else
 }
 
 @code {
+    [Parameter] public string? ApplicationNumber { get; set; }
+    private string? initialApplicationNumber;
     private string email = "", password = "", otp = "", newPassword = "", confirmation = "";
     private bool busy, forgot, disposed;
     private readonly CancellationTokenSource stop = new();
@@ -78,6 +83,8 @@ else
     private DotNetObjectReference<Home>? reference;
     protected override void OnInitialized()
     {
+        var path = new Uri(Location.Uri).AbsolutePath.Split('/', StringSplitOptions.RemoveEmptyEntries);
+        if (path.FirstOrDefault() == "applications") initialApplicationNumber = path.Length > 1 ? Uri.UnescapeDataString(path[1]) : "";
         Session.Changed += Changed;
         checks = RunChecks(); countdown = Tick();
     }

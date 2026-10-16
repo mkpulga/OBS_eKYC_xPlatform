@@ -1,0 +1,70 @@
+@implements IDisposable
+@inject SessionController Session
+@inject ICardholderVerification Cardholders
+
+<section class="dash-card dash-workflow dash-queue-list" aria-labelledby="cardholder-queue-title" aria-busy="@(loading ? "true" : "false")">
+    <div class="dash-section-heading">
+        <div><h1 id="cardholder-queue-title">@CardholderVerificationPresentation.Title</h1><p>Pending card holder verification, oldest first@(reply is { Outcome: PendingOutcome.Success } ? $" · {CardholderVerificationPresentation.Count(reply)}" : "")</p></div>
+        <button class="dash-refresh" @onclick="LoadAsync" disabled="@loading">@(loading ? "Loading…" : "Refresh")</button>
+    </div>
+    @if (loading && reply is null)
+    {
+        <p class="dash-queue-status" role="status">Loading pending cardholders…</p>
+    }
+    else if (reply is not null && CardholderVerificationPresentation.Status(reply) is { } status)
+    {
+        <p class="dash-queue-status" role="status">@status</p>
+    }
+    @if (reply is { Outcome: PendingOutcome.Success, Items.Count: > 0 })
+    {
+        <div class="dash-table-wrap">
+            <table class="dash-table">
+                <thead><tr><th scope="col">No.</th><th scope="col">Reference No.</th><th scope="col">Cardholder</th><th scope="col">Address</th><th scope="col">Mobile</th><th scope="col">Date created</th><th scope="col">Status</th></tr></thead>
+                <tbody>
+                    @foreach (var item in reply.Items)
+                    {
+                        <tr>
+                            <td data-label="No.">@item.No</td>
+                            <td data-label="Reference No."><button class="application-text-button" @onclick='() => OnView.InvokeAsync(item.referencenumber ?? "")' disabled="@(string.IsNullOrWhiteSpace(item.referencenumber))" aria-label="@($"View application {item.referencenumber}")">@CardholderVerificationPresentation.Text(item.referencenumber)</button></td>
+                            <td data-label="Cardholder"><strong>@CardholderVerificationPresentation.Name(item)</strong></td>
+                            <td data-label="Address">@CardholderVerificationPresentation.Text(CardholderVerificationPresentation.Address(item))</td>
+                            <td data-label="Mobile">@CardholderVerificationPresentation.Text(item.msisdn)</td>
+                            <td data-label="Date created">@CardholderVerificationPresentation.Text(item.datecreated)</td>
+                            <td data-label="Status">@CardholderVerificationPresentation.Text(item.status)</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+    <button class="dash-back" @onclick="OnBack">Back to dashboard</button>
+</section>
+
+@code {
+    [Parameter] public EventCallback OnBack { get; set; }
+    [Parameter] public EventCallback<string> OnView { get; set; }
+    private PendingReply? reply;
+    private bool loading;
+    private CancellationTokenSource? load;
+
+    protected override Task OnInitializedAsync() => LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        if (Session.Current is not { } staff || !Session.ProtectedWorkAllowed) return;
+        load?.Cancel();
+        var current = load = new CancellationTokenSource();
+        loading = true;
+        try
+        {
+            var result = await Cardholders.GetPendingAsync(staff, current.Token);
+            // Ignore replies superseded by a newer refresh or issued for a session that has since ended.
+            // Compare by email: a token refresh replaces the StaffSession instance for the same user.
+            if (current.IsCancellationRequested || Session.Current?.Email != staff.Email || !Session.ProtectedWorkAllowed) return;
+            reply = result;
+        }
+        finally { if (load == current) loading = false; }
+    }
+
+    public void Dispose() { load?.Cancel(); reply = null; }
+}
