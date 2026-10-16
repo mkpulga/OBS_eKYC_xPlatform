@@ -18,6 +18,9 @@ public sealed class ViewApplicationView : ContentView
     private string number = "";
     private ApplicationReply? reply;
     public event Action<NavigationEntry>? WorkflowRequested;
+#if WINDOWS
+    public event Action? BiometricCaptureRequested;
+#endif
     public ViewApplicationView() { SizeChanged += (_, _) => ArrangeColumns(); ShowState("Search by application number to view an applicant’s complete record."); }
     public void Configure(SessionController controller, IApplicationRecords service) { session = controller; records = service; }
 
@@ -261,12 +264,18 @@ public sealed class ViewApplicationView : ContentView
         var capture = new VerticalStackLayout { Spacing = 10 }; capture.Add(Text("Biometrics", 13));
 #if ANDROID
         var adapter = new BlockedCaptureAdapter(ClientPlatform.Android, CaptureKind.Fingerprint);
-#else
-        var adapter = new BlockedCaptureAdapter(ClientPlatform.Windows, CaptureKind.Fingerprint);
-#endif
         var panel = new VerticalStackLayout { Spacing = 8, Padding = new Thickness(8, 20) };
         var captureButton = Button("Capture", () => { }, true); captureButton.HorizontalOptions = LayoutOptions.Center; captureButton.IsEnabled = adapter.Availability.Available; ToolTipProperties.SetText(captureButton, adapter.Availability.Reason); panel.Add(captureButton);
         var reason = Text(adapter.Availability.Reason, 10, muted: true); reason.HorizontalTextAlignment = TextAlignment.Center; panel.Add(reason);
+#else
+        var panel = new VerticalStackLayout { Spacing = 8, Padding = new Thickness(8, 20) };
+        var captureButton = Button("Capture", () =>
+        {
+#if WINDOWS
+            if (session?.ProtectedWorkAllowed == true) BiometricCaptureRequested?.Invoke();
+#endif
+        }, true); captureButton.HorizontalOptions = LayoutOptions.Center; panel.Add(captureButton);
+#endif
         var surface = Card(panel, 8); surface.SetDynamicResource(BackgroundColorProperty, "DashPill"); capture.Add(surface);
         if (!string.IsNullOrWhiteSpace(r.BiometricsRemarks)) capture.Add(Text(r.BiometricsRemarks, 12, muted: true));
         sections["biometrics"] = capture; stack.Add(capture);

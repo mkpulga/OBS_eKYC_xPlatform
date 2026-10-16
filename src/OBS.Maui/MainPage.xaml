@@ -46,7 +46,7 @@
         </Style>
     </ContentPage.Resources>
 
-    <Grid>
+    <Grid x:Name="RootGrid">
     <local:DashboardView x:Name="DashboardPanel" IsVisible="False" />
     <ScrollView x:Name="AuthenticationScroll">
         <VerticalStackLayout x:Name="PageContent" Padding="24" Spacing="20"

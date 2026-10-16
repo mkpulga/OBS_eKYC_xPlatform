@@ -11,6 +11,9 @@ public sealed partial class MainPage : ContentPage
     private bool busy, forgot;
     private SignInStage renderedStage = (SignInStage)(-1);
     private bool renderedProtected;
+#if WINDOWS
+    private readonly Controls.BiometricCaptureOverlay biometricCapture;
+#endif
 
     public MainPage(SessionController session, ClientStatus status, ThemeOptions theme, ICardholderVerification cardholders, IApplicationRecords applications)
     {
@@ -26,6 +29,12 @@ public sealed partial class MainPage : ContentPage
         DashboardPanel.Configure(theme, session, cardholders, applications);
         DashboardPanel.LogoutRequested += OnLogoutClicked;
         DashboardPanel.PasswordChangeRequested += OnOpenPasswordChangeClicked;
+#if WINDOWS
+        biometricCapture = new Controls.BiometricCaptureOverlay();
+        biometricCapture.Resources = DashboardPanel.Resources;
+        RootGrid.Add(biometricCapture);
+        DashboardPanel.BiometricCaptureRequested += OnBiometricCaptureRequested;
+#endif
 
         session.Changed += Update;
         session.RefreshChecked += TraceRefresh;
@@ -60,6 +69,9 @@ public sealed partial class MainPage : ContentPage
 
     private void Render()
     {
+#if WINDOWS
+        if (!session.ProtectedWorkAllowed) biometricCapture.Dismiss();
+#endif
         ClearFields();
         if (session.Current is null) DashboardPanel.SetStaff(null);
         renderedStage = session.Stage;
@@ -184,6 +196,10 @@ public sealed partial class MainPage : ContentPage
 
     public void Shutdown()
     {
+#if WINDOWS
+        biometricCapture.Dismiss();
+        DashboardPanel.BiometricCaptureRequested -= OnBiometricCaptureRequested;
+#endif
         stop.Cancel();
         session.Changed -= Update;
         session.RefreshChecked -= TraceRefresh;
@@ -194,4 +210,10 @@ public sealed partial class MainPage : ContentPage
         DashboardPanel.PasswordChangeRequested -= OnOpenPasswordChangeClicked;
         foreach (var panel in ScreenPanels()) panel.IsVisible = false;
     }
+#if WINDOWS
+    private void OnBiometricCaptureRequested()
+    {
+        if (session.ProtectedWorkAllowed && DashboardPanel.IsVisible) biometricCapture.Show(this);
+    }
+#endif
 }

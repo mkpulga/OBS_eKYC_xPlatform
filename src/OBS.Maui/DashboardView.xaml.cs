@@ -24,11 +24,17 @@ public partial class DashboardView : ContentView
     private static readonly NavigationEntry ApplicationNavigation = new("View Application", [CardholderVerificationService.Authority]);
     public event EventHandler? LogoutRequested;
     public event EventHandler? PasswordChangeRequested;
+#if WINDOWS
+    public event Action? BiometricCaptureRequested;
+#endif
 
     public DashboardView()
     {
         InitializeComponent();
         ApplicationHost.Content = application;
+#if WINDOWS
+        application.BiometricCaptureRequested += () => BiometricCaptureRequested?.Invoke();
+#endif
         application.WorkflowRequested += entry => { if (modules.Contains(entry)) { selected = entry; viewApplication = false; ShowSelectedPage(); } };
         SearchType.SelectedIndex = 0;
         SearchType.HandlerChanged += OnSearchHandlerChanged;
