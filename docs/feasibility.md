@@ -4,12 +4,12 @@ These findings are based on inspected source and vendor/library documentation. N
 
 | Integration | Evidence | Blocker |
 |---|---|---|
-| Futronic FS88H | Source uses FutronicHandler/ftrScanAPI and image capture/segmentation; vendor SDK documents capture, template extraction, and matching | Exact SDK build/driver/redistribution, FS88H device access, backend template/image encoding, finger positions/counts/quality, and cross-device duplicate matching need confirmation |
+| Futronic FS88H | Windows Start/Stop raw live preview is implemented through ftrScanAPI, with an in-memory grayscale BMP converter and tested session cleanup | Real FS88H/driver/SDK compatibility, redistribution, validation, backend template/image encoding, required fingers/counts/quality, and duplicate matching remain unverified |
 | Topaz | Original project references SigPlusNET; Signature.cs captures `GetSigImage()` with image sizing | Exact pad model/connection, compatible .NET 9 adapter strategy, license terms, and backend signature acceptance need verification |
 | Face quality/ICAO | IcaoInformation.cs references `obsDLL_v3.FaceRecognition.IcaoFace`; source loads `onejkit.lic` | Engine ownership/license/redistribution, native dependencies, actual ICAO version/tests/thresholds, and Android compatibility are not established |
 | Mouse/touch signature | Required by revised scope | Drawing UI, nonblank/image validation, backend image encoding, permission/persistence implementation, and platform tests remain unfinished |
 
-A blocked capture adapter throws NotSupportedException and never returns simulated biometric bytes. Windows fingerprint, Android camera/touch signatures, and Windows camera/pad/mouse integrations still need actual platform adapters. Existing Windows DLLs aren't evidence of Android support. Raw fingerprint images aren't displayed or included in report exports by this foundation.
+A blocked capture adapter throws NotSupportedException and never returns simulated biometric bytes. Windows FS88H now has an in-memory live preview adapter; preview frames are not validated, marked as captured, saved, uploaded, logged, or included in report exports. Android camera/touch signatures and Windows camera/pad/mouse integrations still need platform adapters. Existing Windows DLLs aren't evidence of Android support.
 
 The [Futronic SDK page](https://www.futronic-tech.com/pro-detail.php?pro_id=1555) describes extraction/matching as well as image capture; this doesn't establish compatibility with the existing backend. [SigPlusNET](https://topazsystems.com/sdks/sigplusnet.html) is a vendor SDK, and its [guide](https://www.topazsystems.com/software/download/sigplusnet.pdf) identifies the Windows Forms control dependency. Topaz distribution must follow the [vendor software agreement](https://topazsystems.com/software-agreements.html); availability without a purchase price isn't unrestricted open-source licensing. Vendor software is not bundled here.
 

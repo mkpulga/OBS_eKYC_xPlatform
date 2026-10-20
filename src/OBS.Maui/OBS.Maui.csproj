@@ -11,6 +11,10 @@
     <SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows'">10.0.17763.0</SupportedOSPlatformVersion>
     <TargetPlatformMinVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows'">10.0.17763.0</TargetPlatformMinVersion>
   </PropertyGroup>
+  <PropertyGroup Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows'">
+    <PlatformTarget>x64</PlatformTarget>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+  </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)' == 'Debug' and $([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android'">
     <!-- Include managed code so a debug APK can be copied to a phone without VS fast deployment. -->
     <EmbedAssembliesIntoApk>true</EmbedAssembliesIntoApk>
@@ -22,5 +26,8 @@
     <EmbeddedResource Include="theme.ini" />
     <MauiIcon Include="Resources/AppIcon/appicon.svg" Color="#17324D" />
     <MauiSplashScreen Include="Resources/AppIcon/appicon.svg" Color="#17324D" BaseSize="128,128" />
+  </ItemGroup>
+  <ItemGroup Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows' and Exists('Platforms/Windows/Native/ftrScanAPI.dll')">
+    <None Update="Platforms/Windows/Native/ftrScanAPI.dll" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" TargetPath="ftrScanAPI.dll" />
   </ItemGroup>
 </Project>

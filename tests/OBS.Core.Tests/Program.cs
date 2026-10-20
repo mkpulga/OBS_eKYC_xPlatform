@@ -388,6 +388,7 @@ Add("Unavailable cardholder service never fabricates a queue", async () =>
 
 ApplicationRecordTests.Register(Add, Check, Options, Verifier);
 ApplicationRevealTests.Register(Add, Check);
+FingerprintScannerTests.Register(Add, Check);
 var failed = 0;
 foreach (var test in tests)
 {

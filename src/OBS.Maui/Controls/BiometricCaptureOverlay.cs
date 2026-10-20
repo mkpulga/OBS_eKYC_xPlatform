@@ -1,11 +1,12 @@
 using Microsoft.Maui.Controls.Shapes;
+using OBS.Core;
 
 namespace OBS.Maui.Controls;
 
 #if WINDOWS
 public enum BiometricFinger { R1, R2, R3, R4, R5, L1, L2, L3, L4, L5 }
 
-// In-memory presentation state only. Future capture handlers can update this control on the UI thread.
+// Live preview stays in memory and never marks a finger as captured.
 public sealed class BiometricCaptureOverlay : ContentView
 {
     private static readonly Color Accent = Color.FromArgb("#485E98");
@@ -14,12 +15,16 @@ public sealed class BiometricCaptureOverlay : ContentView
     private readonly Grid columns = new() { ColumnSpacing = 20, RowSpacing = 20 };
     private readonly Label heading = Text("Right Thumb", 16, true);
     private readonly Label status = Text("Select a finger, then press Start.", 13, muted: true);
-    private readonly Label service = Text("Verification service not connected — using local quality checks.", 11, muted: true);
+    private readonly Label service = Text("Live preview only — no validation or saving.", 11, muted: true);
     private readonly Image preview = new() { Aspect = Aspect.AspectFit, IsVisible = false };
     private readonly DashboardIcon placeholder = Icon("fingerprint", 48, muted: true);
     private readonly Button start, stop, reset, close;
     private readonly Border card;
     private readonly ScrollView scroll;
+    private readonly FingerprintScanSession scan;
+    private FingerprintFrame? displayedFrame;
+    private int updatePending;
+    private bool scanBelongsToOpen, livePreview, failureShown;
     private BiometricFinger selectedFinger;
     private bool closing;
     private Page? owner;
@@ -35,9 +40,11 @@ public sealed class BiometricCaptureOverlay : ContentView
     public string StatusMessage { get => status.Text; set => status.Text = value; }
     public string ServiceMessage { get => service.Text; set => service.Text = value; }
 
-    public BiometricCaptureOverlay()
+    public BiometricCaptureOverlay(IFingerprintScanner? scanner = null)
     {
         IsVisible = false; ZIndex = 100;
+        scan = new FingerprintScanSession(scanner ?? new Platforms.Windows.FutronicScanner());
+        scan.Changed += QueueScanUpdate;
         keyHandler = OnNativeKeyDown;
         var root = new Grid();
         var backdrop = new BoxView { Color = Color.FromArgb("#70000000") };
@@ -66,7 +73,7 @@ public sealed class BiometricCaptureOverlay : ContentView
         buttons.Add(ActionButton("Start", "capture", out start, true));
         buttons.Add(ActionButton("Stop", "stop", out stop, muted: true), 1);
         buttons.Add(ActionButton("Reset", "reset", out reset), 2);
-        start.Clicked += async (_, _) => await OnStartAsync(); stop.Clicked += (_, _) => OnStop(); reset.Clicked += (_, _) => OnReset();
+        start.Clicked += async (_, _) => await OnStartAsync(); stop.Clicked += async (_, _) => await OnStop(); reset.Clicked += (_, _) => OnReset();
         StopEnabled = false; details.Add(buttons); columns.Add(details, 1);
 
         scroll = new ScrollView { Content = columns, Orientation = ScrollOrientation.Vertical };
@@ -87,10 +94,11 @@ public sealed class BiometricCaptureOverlay : ContentView
     public void Show(Page page)
     {
         if (IsVisible) return;
-        owner = page; closing = false; ClearAll(); Select(BiometricFinger.R1);
+        owner = page; closing = false; scanBelongsToOpen = livePreview = failureShown = false; displayedFrame = null;
+        ClearAll(); Select(BiometricFinger.R1);
         StatusMessage = "Select a finger, then press Start.";
-        ServiceMessage = "Verification service not connected — using local quality checks.";
-        StartEnabled = ResetEnabled = true; StopEnabled = false;
+        ServiceMessage = "Live preview only — no validation or saving.";
+        StartEnabled = !scan.Snapshot.IsRunning; ResetEnabled = true; StopEnabled = false;
         IsVisible = true; ArrangeColumns(); HookKeyboard();
         Dispatcher.Dispatch(() => { if (IsVisible) close.Focus(); });
     }
@@ -103,14 +111,18 @@ public sealed class BiometricCaptureOverlay : ContentView
         {
             if (HasCaptures && (owner is null || !await owner.DisplayAlert("Discard captured fingerprints?", "The captured fingerprints will be discarded. Close biometric capture?", "Yes", "No"))) return;
             Dismiss();
+            await scan.StopAsync();
         }
-        finally { closing = false; }
+        finally { closing = false; if (IsVisible) QueueScanUpdate(); }
     }
 
     // Used when the owning page is shut down or protected work is no longer available.
     public void Dismiss()
     {
         var wasVisible = IsVisible;
+        scanBelongsToOpen = livePreview = false; displayedFrame = null;
+        // Request cancellation now; only the worker closes the device, after its native call returns.
+        _ = scan.StopAsync(); scan.ClearFrame();
         IsVisible = false; UnhookKeyboard(); ClearAll(); owner = null;
         if (wasVisible) previousFocus?.Focus(Microsoft.UI.Xaml.FocusState.Programmatic);
         previousFocus = null;
@@ -148,6 +160,7 @@ public sealed class BiometricCaptureOverlay : ContentView
     }
     private void Select(BiometricFinger finger)
     {
+        if (!scan.Snapshot.IsRunning) livePreview = false;
         selectedFinger = finger; heading.Text = FingerName(finger);
         foreach (var key in tiles.Keys) Refresh(key);
     }
@@ -160,7 +173,7 @@ public sealed class BiometricCaptureOverlay : ContentView
         else { tile.Border.ClearValue(Border.StrokeProperty); tile.Border.SetDynamicResource(Border.StrokeProperty, "DashLine"); }
         tile.Border.StrokeThickness = finger == selectedFinger ? 1.5 : 1;
         SemanticProperties.SetDescription(tile.Button, FingerName(finger) + (finger == selectedFinger ? ", selected" : "") + (captured ? ", captured" : ""));
-        if (finger != selectedFinger) return;
+        if (finger != selectedFinger || (scanBelongsToOpen && scan.Snapshot.IsRunning)) return;
         preview.Source = captured ? Source(bytes!) : null; preview.IsVisible = captured; placeholder.IsVisible = !captured;
     }
     private static ImageSource Source(byte[] bytes) => ImageSource.FromStream(() => new MemoryStream(bytes, writable: false));
@@ -203,12 +216,49 @@ public sealed class BiometricCaptureOverlay : ContentView
 
     private Task OnStartAsync()
     {
-        // TODO: function to be provided
+        if (!IsVisible || closing || !scan.Start()) return Task.CompletedTask;
+        scanBelongsToOpen = livePreview = true; failureShown = false; displayedFrame = null;
+        StartEnabled = false; StopEnabled = true;
+        StatusMessage = "Scanning… place a finger on the sensor.";
+        QueueScanUpdate();
         return Task.CompletedTask;
     }
-    private void OnStop()
+    private async Task OnStop()
     {
-        // TODO: function to be provided
+        StopEnabled = false;
+        await scan.StopAsync();
+        await UpdateScanUiAsync();
+    }
+    private void QueueScanUpdate()
+    {
+        if (Interlocked.CompareExchange(ref updatePending, 1, 0) != 0) return;
+        // This callback captures no frame. Slow UI dispatch drops older frames instead of queuing them.
+        if (!Dispatcher.Dispatch(() =>
+        {
+            Interlocked.Exchange(ref updatePending, 0);
+            _ = UpdateScanUiAsync();
+        })) Interlocked.Exchange(ref updatePending, 0);
+    }
+    private async Task UpdateScanUiAsync()
+    {
+        if (!IsVisible || closing) return;
+        var current = scan.Snapshot;
+        StartEnabled = !current.IsRunning; StopEnabled = scanBelongsToOpen && current.IsRunning;
+        if (!scanBelongsToOpen) return;
+        if (livePreview && current.Frame is { } frame && !ReferenceEquals(frame, displayedFrame))
+        {
+            var bitmap = GrayscaleBitmap.Encode(frame);
+            displayedFrame = frame; preview.Source = Source(bitmap); preview.IsVisible = true; placeholder.IsVisible = false;
+        }
+        StatusMessage = current.State switch
+        {
+            FingerprintScanState.Scanning => "Scanning… place a finger on the sensor.",
+            FingerprintScanState.Faulted => current.ErrorMessage!,
+            _ => "Scan stopped."
+        };
+        if (current.State != FingerprintScanState.Faulted || failureShown || owner is not { } page) return;
+        failureShown = true;
+        await page.DisplayAlert("Fingerprint scanner", current.ErrorMessage!, "Close");
     }
     private void OnReset()
     {

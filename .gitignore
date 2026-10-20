@@ -6,3 +6,4 @@ config/app.ini
 src/OBS.Web/appsettings.Local.json
 artifacts/
 .nuget/
+src/OBS.Maui/Platforms/Windows/Native/*.dll
