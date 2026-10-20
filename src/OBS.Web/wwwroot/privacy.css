@@ -1,0 +1,23 @@
+.privacy-workspace { display:grid; grid-template-columns:minmax(0,1fr); min-width:0; gap:14px; }
+.privacy-workspace > *,.privacy-selector > div { min-width:0; }
+.privacy-selector-strip { padding:14px 17px !important; }
+.privacy-selector { display:flex; align-items:end; gap:12px; flex-wrap:wrap; }
+.application-state .privacy-selector { justify-content:center; }
+.privacy-selector label,.privacy-dialog label { display:block; margin:0 0 6px; font-size:13px; text-align:left; }
+.privacy-selector input,.privacy-dialog input { box-sizing:border-box; padding:11px 12px; border:1px solid #9396ae88; border-radius:10px; color:inherit; background:transparent; font:inherit; }
+.privacy-selector input { width:min(320px,100%); max-width:100%; }
+.privacy-status,.privacy-message { margin:10px 0 0; font-size:13px; color:var(--dash-muted); }
+.privacy-mask { display:inline-block; width:128px; height:22px; vertical-align:middle; background:repeating-linear-gradient(90deg,currentColor 0 10px,transparent 10px 15px); opacity:.25; filter:blur(4px); border-radius:5px; }
+.application-address .privacy-mask { margin:4px 0; }
+.application-address small { font-size:10px; color:var(--dash-muted); }
+.privacy-map-button { display:inline-flex; align-items:center; gap:8px; color:var(--dash-text); background:var(--dash-sidebar) !important; box-shadow:0 2px 4px #0003; border-radius:24px; padding:8px 18px !important; font-size:13px; }
+.privacy-map-button .dash-icon { width:16px; height:16px; }
+.privacy-dialog { width:min(440px,calc(100vw - 32px)); box-sizing:border-box; }
+.privacy-dialog p { font-size:14px; line-height:1.5; }
+.privacy-dialog form { margin-top:18px; }
+.privacy-dialog input { width:100%; }
+.privacy-dialog .privacy-action { background:#485e98; color:white; border-radius:18px; padding:9px 18px; font-size:14px; }
+.privacy-dialog button:disabled { opacity:.55; cursor:default; }
+.privacy-dialog-actions { display:flex; align-items:center; gap:12px; margin-top:18px; }
+.privacy-dialog-actions button { font-size:14px; border-radius:18px; }
+@media(max-width:700px) { .privacy-selector { align-items:stretch; flex-direction:column; }.privacy-selector input { width:100%; } }

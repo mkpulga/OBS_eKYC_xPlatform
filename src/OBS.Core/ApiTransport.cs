@@ -5,7 +5,7 @@ using System.Text.Json;
 
 namespace OBS.Core;
 
-public enum ApiFailure { None, Transport, Cancelled, InvalidResponse, ContractUnavailable }
+public enum ApiFailure { None, Transport, Cancelled, InvalidResponse, ContractUnavailable, NotPermitted }
 
 // Never log this result: backend messages/data can contain personal information.
 public sealed class ApiResult
@@ -28,22 +28,29 @@ public sealed class RequestSecurity
     public string? Xsrf { get; init; }
     public string? ConfiguredToken { get; init; }
     public string? CookieHeader { get; init; }
+    public PiiAccessToken? PiiToken { get; init; }
     public override string ToString() => "[request security redacted]";
 }
 
 public sealed class ApiTransport(HttpClient client, BackendOptions options)
 {
     private readonly Uri root = options.GetApiRoot();
+    internal ApiContract Contract => options.ApiContract;
     // Read-only routes are allowlisted one at a time as each workflow slice is migrated.
     private static readonly HashSet<string> GetRoutes = new(StringComparer.Ordinal) { "cardholder/pending" };
+    private static readonly HashSet<string> PostRoutes = new(StringComparer.Ordinal)
+    {
+        "session/authenticate", "session/resend/otp", "session/refresh", "session/terminate",
+        "user/forgot/password", "user/change/password", "privacy/otp/request", "privacy/otp/verify"
+    };
 
-    public async Task<ApiResult> PostAsync(string route, object body, RequestSecurity? security = null,
+    public async Task<ApiResult> PostAsync(string route, object? body, RequestSecurity? security = null,
         CancellationToken cancellationToken = default)
     {
-        if (!route.StartsWith("session/", StringComparison.Ordinal) && route != "user/forgot/password" && route != "user/change/password")
-            throw new ArgumentException("Route is outside the implemented authentication slice.", nameof(route));
-        if (route.Contains("..") || route.Contains('?') || route.Contains('#')) throw new ArgumentException("Invalid route.");
-        using var request = new HttpRequestMessage(HttpMethod.Post, new Uri(root, route)) { Content = JsonContent.Create(body) };
+        if (!PostRoutes.Contains(route))
+            throw new ArgumentException("Route is outside the implemented slices.", nameof(route));
+        using var request = new HttpRequestMessage(HttpMethod.Post, new Uri(root, route))
+        { Content = body is null ? null : JsonContent.Create(body) };
         return await SendAsync(request, security, cancellationToken);
     }
 
@@ -52,9 +59,19 @@ public sealed class ApiTransport(HttpClient client, BackendOptions options)
         var segments = route.Split('/');
         var applicationRoute = segments.Length == 3 && segments[0] == "cardholder" && segments[1] == "pending" && ApplicationPresentation.ValidNumber(segments[2]);
         var documentRoute = segments.Length == 4 && segments[0] == "documents" && segments[1] == "pending" && segments[3] == "ALL" && ApplicationPresentation.ValidNumber(segments[2]);
-        if (!GetRoutes.Contains(route) && !applicationRoute && !documentRoute) throw new ArgumentException("Route is outside the implemented slices.", nameof(route));
+        if (!GetRoutes.Contains(route) && !applicationRoute && !documentRoute && !IsPrivacyGet(route)) throw new ArgumentException("Route is outside the implemented slices.", nameof(route));
         using var request = new HttpRequestMessage(HttpMethod.Get, new Uri(root, route));
         return await SendAsync(request, security, cancellationToken);
+    }
+
+    private static bool IsPrivacyGet(string route)
+    {
+        var segments = route.Split('/');
+        return route == "dashboard" ||
+            (segments.Length == 4 && segments[0] == "privacy" && segments[1] == "verification" && segments[2] == "status" && ApplicationPresentation.ValidNumber(segments[3])) ||
+            (segments.Length == 4 && segments[0] == "privacy" && segments[1] == "applicants" && ApplicationPresentation.ValidNumber(segments[2]) && segments[3] is "bio" or "address" or "emergency" or "education") ||
+            (segments.Length == 3 && ((segments[0] == "information" && segments[1] == "gathering") ||
+                (segments[0] == "cardholder" && segments[1] == "update")) && ApplicationPresentation.ValidNumber(segments[2]));
     }
 
     private async Task<ApiResult> SendAsync(HttpRequestMessage request, RequestSecurity? security, CancellationToken cancellationToken)
@@ -73,6 +90,13 @@ public sealed class ApiTransport(HttpClient client, BackendOptions options)
             if (string.IsNullOrEmpty(options.TokenHeaderKey)) throw new InvalidOperationException("Token header name is unconfigured.");
             request.Headers.Add(options.TokenHeaderKey, token);
         }
+        if (security?.PiiToken is { } pii)
+        {
+            if (request.Method != HttpMethod.Get || !IsPrivacyGet(request.RequestUri!.AbsolutePath[root.AbsolutePath.Length..]) ||
+                request.RequestUri.AbsolutePath.EndsWith("/dashboard", StringComparison.Ordinal))
+                throw new ArgumentException("PII tokens may only be sent to documented applicant privacy reads.");
+            request.Headers.Add("X-PII-Access-Token", pii.Value);
+        }
         try
         {
             using var response = await client.SendAsync(request, cancellationToken);
@@ -83,6 +107,8 @@ public sealed class ApiTransport(HttpClient client, BackendOptions options)
             {
                 using var document = JsonDocument.Parse(content);
                 var element = document.RootElement;
+                if (element.ValueKind != JsonValueKind.Object)
+                    return new ApiResult { HttpStatus = response.StatusCode, Cookies = cookies, Failure = ApiFailure.InvalidResponse };
                 string? Read(string name) => SourceJson.TryGetProperty(element, name, out var field)
                     ? field.ValueKind == JsonValueKind.String ? field.GetString() : field.GetRawText() : null;
                 return new ApiResult { HttpStatus = response.StatusCode, BusinessCode = Read("code"), Message = Read("message"),

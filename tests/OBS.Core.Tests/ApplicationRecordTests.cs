@@ -60,6 +60,39 @@ static class ApplicationRecordTests
                 check((await Service(client).FindAsync(verifier(), "123", default)).Outcome == expected, "Incorrect error classification");
             }
         });
+        add("Pending lookup business 2004 means not found only for the confirmed HTTP status and route", async () =>
+        {
+            ApplicationRecordsService PrivacyLookup(HttpClient client) => new(new ApiTransport(client, options() with
+            { ApiContract = ApiContract.Privacy, ApiRootPath = "/api/v1", BaseUrl = "https://backend.example.invalid/obs" }));
+            foreach (var (status, body, expected) in new[] {
+                (HttpStatusCode.Unauthorized, "{\"code\":2004,\"message\":\"Pending application not found\"}", ApplicationOutcome.NotFound),
+                (HttpStatusCode.Unauthorized, "{\"code\":0}", ApplicationOutcome.NotPermitted),
+                (HttpStatusCode.Unauthorized, "{\"code\":99}", ApplicationOutcome.NotPermitted),
+                (HttpStatusCode.Forbidden, "{\"code\":2004}", ApplicationOutcome.NotPermitted),
+                (HttpStatusCode.InternalServerError, "{\"code\":2004}", ApplicationOutcome.ConnectionFailure),
+                (HttpStatusCode.OK, "{\"code\":2004}", ApplicationOutcome.Rejected) })
+            {
+                var calls = 0;
+                using var client = new HttpClient(new Handler(request =>
+                {
+                    calls++;
+                    check(request.RequestUri!.AbsolutePath == "/obs/api/v1/cardholder/pending/123", "Unexpected follow-up or attachment request");
+                    return Response(body, status);
+                }));
+                var reply = await PrivacyLookup(client).FindAsync(verifier(), "123", default);
+                check(reply.Outcome == expected && reply.Record is null && reply.Documents is null && calls == 1,
+                    "Missing-record exception broadened authentication rules or fetched attachments");
+            }
+            // The same business code on the attachment route remains an authorization failure.
+            using var documents = new HttpClient(new Handler(request => request.RequestUri!.AbsolutePath.EndsWith("/ALL")
+                ? Response("{\"code\":2004}", HttpStatusCode.Unauthorized) : Response(Body)));
+            var partial = await PrivacyLookup(documents).FindAsync(verifier(), "123", default);
+            check(partial.Outcome == ApplicationOutcome.Success && partial.Record is not null && partial.DocumentError is not null,
+                "Pending-lookup rule leaked into the attachment endpoint");
+            using var existingContract = new HttpClient(new Handler(_ => Response("{\"code\":2004}", HttpStatusCode.Unauthorized)));
+            check((await Service(existingContract).FindAsync(verifier(), "123", default)).Outcome == ApplicationOutcome.NotPermitted,
+                "Selected-contract exception changed existing deployments");
+        });
         add("Application attachment failure preserves applicant details and enables retry", async () =>
         {
             foreach (var documentBody in new[] { "{\"code\":99}", "{\"code\":0,\"data\":{}}", "<html>error</html>" })

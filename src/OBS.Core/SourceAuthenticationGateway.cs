@@ -6,7 +6,7 @@ namespace OBS.Core;
 // Derived from Models/userData.cs and Controllers/sessionController.cs. Live behavior remains unverified.
 public sealed class SourceAuthenticationGateway(ApiTransport api, BackendOptions options) : IAuthenticationGateway
 {
-    public bool ContractAvailable => options.ApiContract == ApiContract.Refactored;
+    public bool ContractAvailable => options.ApiContract is ApiContract.Refactored or ApiContract.Privacy;
     public async Task<AuthReply> AuthenticateAsync(string email, string password, string? otp, CancellationToken token)
     {
         if (!ContractAvailable) return new(AuthOutcome.Blocked);
@@ -65,7 +65,10 @@ public sealed class SourceAuthenticationGateway(ApiTransport api, BackendOptions
     }
 
     public async Task TerminateAsync(StaffSession session, CancellationToken token) =>
-        _ = await api.PostAsync("session/terminate", AuthenticationRequests.Terminate(session.Email), AuthenticationRequests.TerminateSecurity(session.Tokens), token);
+        _ = await api.PostAsync("session/terminate",
+            options.ApiContract == ApiContract.Privacy ? null : AuthenticationRequests.Terminate(session.Email),
+            options.ApiContract == ApiContract.Privacy ? new RequestSecurity { Bearer = session.Tokens.Access }
+                : AuthenticationRequests.TerminateSecurity(session.Tokens), token);
 
     public Task<ApiResult> ForgotPasswordAsync(string email, CancellationToken token) =>
         api.PostAsync("user/forgot/password", new { email, guiinterface = "OBS" }, cancellationToken: token);

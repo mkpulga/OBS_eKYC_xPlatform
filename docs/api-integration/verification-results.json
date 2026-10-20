@@ -1,0 +1,297 @@
+{
+  "date": "2026-10-20",
+  "timezone": "Asia/Manila",
+  "overallStatus": "incomplete",
+  "branch": "codex/api-integration-audit",
+  "initialCommit": "6af963b",
+  "initialWorkingTree": "clean",
+  "collectionSha256": "052A352871191D39209951F755CC76969DF9D20B50178E0D7779849D2495FABE",
+  "requestsReviewed": 16,
+  "coverage": {
+    "Already supported": 2,
+    "Implemented": 11,
+    "Deferred": 3
+  },
+  "requestVerification": {
+    "Mock-tested": 13,
+    "Not tested": 3,
+    "Live-verified": 0
+  },
+  "newScreenWorkflows": {
+    "Wired": 7,
+    "Pending": 3,
+    "LiveAccepted": 0
+  },
+  "uiApproval": "Small email OTP dialog and new screen in the same app approved; both parallel screens implemented using direct citizen ID; existing search preserved",
+  "clientMode": "Parallel Privacy Verification uses existing staff login and exact configured root. Replacement Privacy sign-in remains guarded pending renewal/full workflow acceptance",
+  "baselineTests": {
+    "passed": 71,
+    "total": 71,
+    "exitCode": 0
+  },
+  "finalTests": {
+    "command": "dotnet run --project tests/OBS.Core.Tests/OBS.Core.Tests.csproj --no-restore",
+    "passed": 128,
+    "total": 128,
+    "exitCode": 0,
+    "label": "Mock-tested",
+    "log": "artifacts/api-integration/2026-10-20/privacy-layout-tests.log"
+  },
+  "solutionBuild": {
+    "command": "dotnet build OBS_eKYC.sln --artifacts-path artifacts/api-integration/2026-10-20/controller-isolated --no-restore",
+    "exitCode": 0,
+    "errors": 0,
+    "warnings": 1,
+    "label": "Locally validated",
+    "warning": "Existing XC0025 in People.xaml:14",
+    "log": "artifacts/api-integration/2026-10-20/privacy-layout-solution-build.log",
+    "scope": "Web/Windows/test solution incremental validation after initial isolated restore/full build using unchanged versions; running desktop app left untouched"
+  },
+  "normalSolutionBuildAttempt": {
+    "command": "dotnet build OBS_eKYC.sln --no-restore",
+    "exitCode": 1,
+    "errors": 2,
+    "warnings": 11,
+    "reason": "MSB3027/MSB3021 output copy failed: the running OBS.Maui.exe locks the normal output OBS.Core.dll",
+    "log": "artifacts/api-integration/2026-10-20/privacy-controller-solution-build.log",
+    "resolution": "Full solution succeeded in isolated artifacts output; no user process was stopped or source/toolchain workaround added"
+  },
+  "androidCompile": {
+    "prerequisite": "dotnet restore src/OBS.Maui/OBS.Maui.csproj -p:EnableAndroidTarget=true",
+    "command": "dotnet build src/OBS.Maui/OBS.Maui.csproj -p:EnableAndroidTarget=true -f net9.0-android -t:Compile --no-restore",
+    "exitCode": 0,
+    "errors": 0,
+    "warnings": 0,
+    "label": "Locally validated",
+    "scope": "Compile only; no fresh APK or device test",
+    "limitation": "Compile failed with 57 missing MAUI references before Android restore and again after a Windows build; rerunning Android restore immediately before Compile passed. Root cause of restore sensitivity not established.",
+    "log": "artifacts/api-integration/2026-10-20/privacy-layout-android-compile.log",
+    "failureLog": "artifacts/api-integration/2026-10-20/android-compile-after-windows-failure.log"
+  },
+  "dependencyChanges": [],
+  "databaseSchemaChanges": false,
+  "liveApiRequests": true,
+  "liveAuthenticatedWorkflowTests": false,
+  "existingReferenceLookupObservation": {
+    "source": "User-reported manual Postman check",
+    "method": "GET",
+    "pathTemplate": "/obs/api/v1/cardholder/pending/{approvedTestReference}",
+    "httpStatus": 500,
+    "piiHeaderUncheckedByUser": true,
+    "responseBodyProvided": true,
+    "businessCode": 99,
+    "sanitizedMessage": "Internal server error",
+    "actualMethodAndResolvedPathConfirmedForFailedAttempt": false,
+    "laterRequestCorrectionReported": true,
+    "assistantIssuedRequest": false,
+    "meaning": "Historical failed attempt; user later suspected address/method and supplied business success for the intended GET path. The earlier generic error is not current evidence that lookup is unsupported. Canonical ID semantics remain unknown."
+  },
+  "correctedReferenceLookupObservation": {
+    "source": "User-supplied attachment inspected for field names/types only, followed by method/path confirmation",
+    "method": "GET",
+    "pathTemplate": "/obs/api/v1/cardholder/pending/{referenceNumber}",
+    "httpStatus": null,
+    "businessCode": 0,
+    "dataRows": 1,
+    "shape": "Existing nested personalinformation/address/emergencycontact/educationalinformation detail format",
+    "numericIdPresent": true,
+    "explicitCitizenIdPresent": false,
+    "canonicalIdAliasEstablished": false,
+    "sameApplicantAsPrivacyChecks": false,
+    "differentApplicantConfirmedByUser": true,
+    "nextCheck": "Historical lookup evidence; bridge deferred. Parallel screen uses citizen ID directly and needs no further lookup checks",
+    "personalValuesCopiedIntoEvidenceOrFixtures": false,
+    "assistantIssuedRequest": false,
+    "developerErrorMessageOnHold": true
+  },
+  "manualEvidence": {
+    "sameApplicantReferenceLookupFollowUp": {
+      "source": "User confirmed original approved test reference was prepared, then supplied HTTP status and a later response body",
+      "pathTemplate": "/obs/api/v1/cardholder/pending/{approvedTestReference}",
+      "method": "GET",
+      "previouslyReportedHttpStatus": 401,
+      "businessCode": 2004,
+      "sanitizedMessage": "Pending application not found",
+      "httpStatus": 401,
+      "httpStatusBodyPairConfirmed": true,
+      "userClarifiedMeaning": "No matching pending application",
+      "clientMapping": "Privacy contract only, specific pending lookup only, HTTP 401/business 2004 maps to ApplicationOutcome.NotFound; other contracts/statuses/endpoints unchanged",
+      "canonicalIdEstablished": false,
+      "assistantIssuedRequest": false,
+      "nextCheck": "No further lookup needed for parallel screen. Establish field/type only if later connecting existing reference search; do not invent an alias"
+    },
+    "pendingListClarification": {
+      "source": "User response to endpoint/field questions",
+      "method": "GET",
+      "relativePath": "/cardholder/pending",
+      "purpose": "List of pending applications",
+      "citizenidFieldReportedAbsent": true,
+      "rawListRequestedOrStored": false,
+      "canonicalMappingEstablished": false
+    },
+    "loginOtpRequest": "User reported HTTP 200 and email delivery",
+    "loginOtpVerify": "User reported HTTP 200, business code 0 and accessToken populated; identity/credential values not retained",
+    "dashboard": "User supplied business-code-0 response shape; HTTP status not reported; numeric/activity mapping implemented and mock-tested",
+    "approvedSyntheticApplicantAvailable": true,
+    "loginCookies": "User confirmed both exact refresh_token and XSRF-TOKEN cookie names; synthetic complete-session mapping passes; actual renewal unverified",
+    "privacyVerify": "User reported HTTP 200/business 0 bare success, PII variable populated, and exact pii_access_token cookie; token capture grants nothing",
+    "privacyStatus": "User reported HTTP 200/business 0 with boolean verified, string applicationId, absolute UTC expiry and four exact section claim strings; typed mapping mock-tested",
+    "protectedSections": "User supplied personal-info/address/emergency/other-info array structures with numeric citizenid; HTTP statuses not supplied; synthetic typed mapping tests pass",
+    "informationGathering": "User supplied authorized detail body with object-shaped boolean flags; HTTP status not supplied; typed mapping mock-tested",
+    "cardholderUpdate": "User supplied redacted detail body with empty protected arrays and false flags; HTTP status and exact credential state not supplied; typed mapping mock-tested",
+    "assistantUsedUserCredentials": false
+  },
+  "laterAccessProbe": {
+    "method": "HEAD",
+    "path": "/obs/api/v1/dashboard",
+    "authenticated": false,
+    "httpStatus": 401,
+    "contentType": "application/json; charset=ISO-8859-1",
+    "meaning": "Authentication boundary observed; route deployment and functional response contract still unverified"
+  },
+  "commitPushDeploymentReleasePerformed": false,
+  "initialAdapterAudit": {
+    "changedFilesAccountedFor": 24,
+    "filesMissingFromInventory": 0,
+    "brokenLocalDocumentationLinks": 0,
+    "knownCollectionCredentialLiteralMatchesInChangedFiles": 0,
+    "collectionProvenanceHashMatches": true,
+    "packageSdkManifestChanges": 0,
+    "stagedFiles": 0,
+    "trackedDiffWhitespaceCheckExitCode": 0,
+    "scope": "Focused source/diff, inventory and known-source-value checks; not an exhaustive security audit"
+  },
+  "dashboardFollowUpAudit": {
+    "changedFilesAccountedFor": 28,
+    "filesMissingFromInventory": 0,
+    "brokenLocalDocumentationLinks": 0,
+    "jwtLikeCredentialLiteralsInChangedFiles": 0,
+    "packageSdkManifestChanges": 0,
+    "trackedDiffWhitespaceCheckExitCode": 0,
+    "dashboardStatisticsStoredInFixtures": false,
+    "screenLayoutsOrStartupGuardsChanged": false
+  },
+  "privacyFollowUpAudit": {
+    "changedFilesAccountedFor": 33,
+    "filesMissingFromInventory": 0,
+    "brokenLocalDocumentationLinks": 0,
+    "jwtLikeCredentialLiteralsInChangedFiles": 0,
+    "collectionProvenanceHashMatches": true,
+    "packageSdkManifestChanges": 0,
+    "stagedFiles": 0,
+    "trackedDiffWhitespaceCheckExitCode": 0,
+    "sourcePersonalValuesStoredInFixtures": false,
+    "screenLayoutsOrStartupGuardsChanged": false,
+    "scope": "Focused source/inventory/link/hash/JWT-pattern checks; not an exhaustive security audit"
+  },
+  "controllerFollowUpAudit": {
+    "changedFilesAccountedFor": 36,
+    "filesMissingFromInventory": 0,
+    "brokenLocalDocumentationLinks": 0,
+    "jwtLikeCredentialLiteralsInChangedFiles": 0,
+    "collectionProvenanceHashMatches": true,
+    "packageSdkManifestChanges": 0,
+    "stagedFiles": 0,
+    "trackedDiffWhitespaceCheckExitCode": 0,
+    "sourcePersonalValuesStoredInFixtures": false,
+    "screenLayoutsOrStartupGuardsChanged": false,
+    "scope": "Focused inventory/link/hash/JWT-pattern/source/lifecycle review; not an exhaustive security audit"
+  },
+  "pendingLookupFollowUpAudit": {
+    "changedFilesAccountedFor": 38,
+    "filesMissingFromInventory": 0,
+    "brokenLocalDocumentationLinks": 0,
+    "jwtLikeCredentialLiteralsInChangedFiles": 0,
+    "packageSdkManifestChanges": 0,
+    "stagedFiles": 0,
+    "trackedDiffWhitespaceCheckExitCode": 0,
+    "scope": "Focused changed-source/inventory/link/JWT-pattern checks; no full security audit or live authorization claim"
+  },
+  "remaining": [
+    "Dashboard period semantics and screen binding",
+    "Complete backend schema/variants and server authorization enforcement beyond observed samples",
+    "Two detail-screen integrations and a future reference-to-citizen-ID bridge; new parallel screen uses direct citizen ID and does not depend on that mapping",
+    "Selected-server renewal/rotation and full client-session compatibility; login cookie names now confirmed",
+    "Live web/native lifecycle, browser/native dialog focus/keyboard/accessibility and authorized/denied synthetic-record acceptance; screen wiring and local core/render checks completed",
+    "Live authorization and regression acceptance using synthetic records"
+  ],
+  "parallelScreenAudit": {
+    "changedFilesAccountedFor": 52,
+    "filesMissingFromInventory": 0,
+    "brokenLocalDocumentationLinks": 0,
+    "jwtLikeCredentialLiteralsInChangedFiles": 0,
+    "collectionProvenanceHashMatches": true,
+    "packageSdkManifestOrExistingSettingsChanges": 0,
+    "stagedFiles": 0,
+    "trackedDiffWhitespaceCheckExitCode": 0,
+    "scope": "Focused source/inventory/link/hash/JWT-pattern checks; not a full security audit or live workflow acceptance"
+  },
+  "webComponentRender": {
+    "passed": 9,
+    "total": 9,
+    "label": "Locally rendered with synthetic HTTP",
+    "states": [
+      "locked",
+      "dialog",
+      "verified",
+      "bio details",
+      "hidden details cleared",
+      "all sections",
+      "education details",
+      "revoked details cleared",
+      "cleared after logout"
+    ],
+    "command": "dotnet run --project artifacts/api-integration/2026-10-20/ui-render/Harness.csproj --no-restore",
+    "log": "artifacts/api-integration/2026-10-20/privacy-layout-web-render.log",
+    "limitation": "Actual component/reference layout HTML and state transitions plus local headless layout checks; no live staff session/native-device acceptance"
+  },
+  "parallelScreen": {
+    "existingReferenceSearchRetained": true,
+    "directCitizenIdInput": true,
+    "existingStaffLoginAndExactConfiguredApiRootRetained": true,
+    "replacementPrivacySignInGuardRetained": true,
+    "newViews": [
+      "src/OBS.Web/Components/PrivacyVerification.razor",
+      "src/OBS.Maui/PrivacyVerificationView.cs"
+    ],
+    "newCore": [
+      "PrivacyWorkspace",
+      "PrivacyScreenState",
+      "PrivacyPresentation"
+    ],
+    "addedWorkspaceScreenCases": 9,
+    "backendCredentialsUsedByAssistant": false,
+    "installedRunningAppRestarted": false
+  },
+  "visualAlignment": {
+    "requestedReference": "View Application Details",
+    "webReusesExistingApplicationCss": true,
+    "nativeMatchesExistingCardDimensionsAndBreakpoints": true,
+    "originalApplicationViewsAndCorePrivacyLogicChanged": false,
+    "missingPhotoContactCardCaptureDocumentsFabricated": false,
+    "protectedDetailDialogsClearOnHideRevocationSelectionSessionDisposal": true,
+    "measuredSyntheticViewports": [
+      {
+        "viewport": 390,
+        "document": 375,
+        "columns": "327px",
+        "name": "mobile"
+      },
+      {
+        "viewport": 1000,
+        "document": 985,
+        "columns": "460.5px 460.5px",
+        "name": "tablet"
+      },
+      {
+        "viewport": 1680,
+        "document": 1680,
+        "columns": "396px 396px 396px 396px",
+        "name": "desktop"
+      }
+    ],
+    "lightDarkMobileAndDialogPreviewsInspected": true,
+    "screenshotDirectory": "artifacts/api-integration/2026-10-20/ui-render",
+    "nativeDeviceAcceptance": "Not tested"
+  }
+}

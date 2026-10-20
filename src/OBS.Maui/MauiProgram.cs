@@ -10,15 +10,18 @@ public static class MauiProgram
         IAuthenticationGateway gateway;
         ICardholderVerification cardholders;
         IApplicationRecords applications;
+        PrivacyWorkspace privacy;
         string? error = null;
         using var stream = typeof(MauiProgram).Assembly.GetManifestResourceStream("OBS.Maui.app.ini")!;
         using var reader = new StreamReader(stream);
         try
         {
             var options = BackendOptions.ReadIni(reader.ReadToEnd());
+            if (options.ApiContract == ApiContract.Privacy) throw new ArgumentException(PrivacyApiService.ClientUnavailableReason);
             gateway = new OwnedGateway(options);
             cardholders = new OwnedCardholderVerification(options);
             applications = new OwnedApplicationRecords(options);
+            privacy = new(options);
         }
         catch (ArgumentException exception)
         {
@@ -26,6 +29,7 @@ public static class MauiProgram
             gateway = new UnverifiedAuthenticationGateway();
             cardholders = new UnavailableCardholderVerification();
             applications = new UnavailableApplicationRecords();
+            privacy = new();
         }
         builder.Services.AddSingleton(new ClientStatus(error));
         using var themeStream = typeof(MauiProgram).Assembly.GetManifestResourceStream("OBS.Maui.theme.ini")!;
@@ -34,6 +38,7 @@ public static class MauiProgram
         builder.Services.AddSingleton<IAuthenticationGateway>(gateway);
         builder.Services.AddSingleton(cardholders);
         builder.Services.AddSingleton(applications);
+        builder.Services.AddSingleton(privacy);
         builder.Services.AddSingleton<SessionController>();
         builder.Services.AddSingleton<MainPage>();
         return builder.Build();

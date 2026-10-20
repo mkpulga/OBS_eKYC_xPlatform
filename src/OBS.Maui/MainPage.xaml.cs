@@ -15,7 +15,7 @@ public sealed partial class MainPage : ContentPage
     private readonly Controls.BiometricCaptureOverlay biometricCapture;
 #endif
 
-    public MainPage(SessionController session, ClientStatus status, ThemeOptions theme, ICardholderVerification cardholders, IApplicationRecords applications)
+    public MainPage(SessionController session, ClientStatus status, ThemeOptions theme, ICardholderVerification cardholders, IApplicationRecords applications, PrivacyWorkspace privacy)
     {
         InitializeComponent();
         this.session = session;
@@ -26,7 +26,7 @@ public sealed partial class MainPage : ContentPage
         Resources["ThemeText"] = Color.FromArgb(theme.Text);
         ProductNameLabel.Text = theme.ProductName;
         CityNameLabel.Text = theme.CityName;
-        DashboardPanel.Configure(theme, session, cardholders, applications);
+        DashboardPanel.Configure(theme, session, cardholders, applications, privacy);
         DashboardPanel.LogoutRequested += OnLogoutClicked;
         DashboardPanel.PasswordChangeRequested += OnOpenPasswordChangeClicked;
 #if WINDOWS
@@ -210,6 +210,7 @@ public sealed partial class MainPage : ContentPage
         DashboardPanel.PasswordChangeRequested -= OnOpenPasswordChangeClicked;
         foreach (var panel in ScreenPanels()) panel.IsVisible = false;
     }
+    protected override bool OnBackButtonPressed() => DashboardPanel.CancelPrivacyDialog() || base.OnBackButtonPressed();
 #if WINDOWS
     private void OnBiometricCaptureRequested()
     {

@@ -21,6 +21,10 @@ public partial class DashboardView : ContentView
     private CancellationTokenSource? cardholderLoad;
     private readonly ViewApplicationView application = new();
     private bool viewApplication;
+    private bool viewPrivacy;
+    private PrivacyWorkspace? privacyWorkspace;
+    private PrivacyVerificationView? privacyView;
+    private static readonly NavigationEntry PrivacyNavigation = new("Privacy Verification", []);
     private static readonly NavigationEntry ApplicationNavigation = new("View Application", [CardholderVerificationService.Authority]);
     public event EventHandler? LogoutRequested;
     public event EventHandler? PasswordChangeRequested;
@@ -35,7 +39,7 @@ public partial class DashboardView : ContentView
 #if WINDOWS
         application.BiometricCaptureRequested += () => BiometricCaptureRequested?.Invoke();
 #endif
-        application.WorkflowRequested += entry => { if (modules.Contains(entry)) { selected = entry; viewApplication = false; ShowSelectedPage(); } };
+        application.WorkflowRequested += entry => { if (modules.Contains(entry)) { selected = entry; viewApplication = viewPrivacy = false; ShowSelectedPage(); } };
         SearchType.SelectedIndex = 0;
         SearchType.HandlerChanged += OnSearchHandlerChanged;
         SearchEntry.HandlerChanged += OnSearchHandlerChanged;
@@ -57,10 +61,11 @@ public partial class DashboardView : ContentView
         RefreshClock();
     }
 
-    public void Configure(ThemeOptions theme, SessionController session, ICardholderVerification cardholders, IApplicationRecords? applications = null)
+    public void Configure(ThemeOptions theme, SessionController session, ICardholderVerification cardholders, IApplicationRecords? applications = null, PrivacyWorkspace? privacy = null)
     {
         this.session = session;
         this.cardholders = cardholders;
+        privacyWorkspace = privacy;
         application.Configure(session, applications ?? new UnavailableApplicationRecords());
         ToolbarCityPicker.Items.Clear(); ToolbarCityPicker.Items.Add(theme.CityName); ToolbarCityPicker.SelectedIndex = 0;
         SubtitleLabel.Text = $"{theme.CityName} · Sample data";
@@ -75,7 +80,7 @@ public partial class DashboardView : ContentView
         if (staff is null)
         {
             ClearCardholders();
-            application.Clear(); viewApplication = false;
+            application.Clear(); viewApplication = viewPrivacy = false;
             selected = null;
             SearchEntry.Text = "";
             NoticeCard.IsVisible = false;
@@ -160,6 +165,12 @@ public partial class DashboardView : ContentView
         ModuleList.Add(NavigationRow("Dashboard", "dashboard", OnOverview));
         if (modules.Any(entry => entry.Authorities.Contains(CardholderVerificationService.Authority)))
             ModuleList.Add(NavigationRow("View Application", "identity", (_, _) => OpenApplication(""), ApplicationNavigation));
+        if (privacyWorkspace?.Available == true && session?.ProtectedWorkAllowed == true)
+            ModuleList.Add(NavigationRow("Privacy Verification", "lock", (_, _) =>
+            {
+                selected = null; viewApplication = false; viewPrivacy = true; mobileOpen = false;
+                ShowSelectedPage(); ApplyLayout();
+            }, PrivacyNavigation));
         foreach (var group in modules.Select(DashboardPresentation.Module).GroupBy(item => item.Group))
         {
             AddHeading(group.Key);
@@ -168,7 +179,7 @@ public partial class DashboardView : ContentView
                 var row = NavigationRow(module.Label, module.Icon, (_, _) =>
                 {
                     if (!modules.Contains(module.Entry)) return;
-                    selected = module.Entry; viewApplication = false; mobileOpen = false; ShowSelectedPage(); ApplyLayout();
+                    selected = module.Entry; viewApplication = viewPrivacy = false; mobileOpen = false; ShowSelectedPage(); ApplyLayout();
                     if (CardholderVerificationPresentation.IsQueue(selected)) _ = LoadCardholdersAsync();
                 }, module.Entry, group.Key == "RECORDS" ? "#64B276" : "#519CFF");
                 ModuleList.Add(row);
@@ -213,14 +224,21 @@ public partial class DashboardView : ContentView
     }
     private void ShowSelectedPage()
     {
-        DashboardColumns.IsVisible = selected is null && !viewApplication;
-        WorkflowCard.IsVisible = selected is not null && !viewApplication;
+        DashboardColumns.IsVisible = selected is null && !viewApplication && !viewPrivacy;
+        WorkflowCard.IsVisible = selected is not null && !viewApplication && !viewPrivacy;
         ApplicationHost.IsVisible = viewApplication;
+        PrivacyHost.IsVisible = viewPrivacy;
+        if (viewPrivacy && privacyView is null && privacyWorkspace?.Available == true && session is not null)
+        {
+            privacyView = new(privacyWorkspace.CreateScreen(session), content => { PrivacyDialogHost.Content = content; PrivacyDialogHost.IsVisible = content is not null; }) { Resources = Resources };
+            PrivacyHost.Content = privacyView;
+        }
+        else if (!viewPrivacy && privacyView is not null) { privacyView.Dispose(); privacyView = null; PrivacyHost.Content = null; }
         WorkflowTitle.Text = selected?.Title ?? "";
         CardholderPanel.IsVisible = CardholderVerificationPresentation.IsQueue(selected);
         WorkflowPlaceholder.IsVisible = !CardholderPanel.IsVisible;
         foreach (var (button, entry) in navigationButtons)
-            if (viewApplication ? entry == ApplicationNavigation : entry == selected) button.SetDynamicResource(BackgroundColorProperty, "DashSelected");
+            if (viewPrivacy ? entry == PrivacyNavigation : viewApplication ? entry == ApplicationNavigation : entry == selected) button.SetDynamicResource(BackgroundColorProperty, "DashSelected");
             else { button.RemoveDynamicResource(BackgroundColorProperty); button.BackgroundColor = Colors.Transparent; }
     }
     private void OnRefreshCardholders(object? sender, EventArgs e) => _ = LoadCardholdersAsync();
@@ -298,13 +316,14 @@ public partial class DashboardView : ContentView
     private void OpenApplication(string number)
     {
         if (session?.Current?.Allows(CardholderVerificationService.Authority) != true || !session.ProtectedWorkAllowed) { Notice(ApplicationPresentation.Status(ApplicationOutcome.NotPermitted)); return; }
-        selected = null; viewApplication = true; mobileOpen = false; SearchType.SelectedIndex = 0; SearchEntry.Text = number;
+        selected = null; viewApplication = true; viewPrivacy = false; mobileOpen = false; SearchType.SelectedIndex = 0; SearchEntry.Text = number;
         NoticeCard.IsVisible = false; ShowSelectedPage(); ApplyLayout(); _ = application.LoadAsync(number);
     }
     private void OnOverview(object? sender, EventArgs e)
     {
-        selected = null; viewApplication = false; mobileOpen = false; NoticeCard.IsVisible = false; ShowSelectedPage(); ApplyLayout();
+        selected = null; viewApplication = viewPrivacy = false; mobileOpen = false; NoticeCard.IsVisible = false; ShowSelectedPage(); ApplyLayout();
     }
+    public bool CancelPrivacyDialog() => privacyView?.CancelDialogIfOpen() == true;
     private void OnToggleSidebar(object? sender, EventArgs e)
     {
         if (Width < 900) mobileOpen = !mobileOpen; else collapsed = !collapsed;
@@ -329,9 +348,10 @@ public partial class DashboardView : ContentView
         SearchFields.ColumnDefinitions[1].Width = mobile ? 102 : 146;
         SearchFields.ColumnDefinitions[3].Width = mobile ? 0 : 32;
         ((View)SearchFields.Children[3]).IsVisible = !mobile;
-        var padding = mobile ? 12 : viewApplication ? 32 : 36;
+        var detailsLayout = viewApplication || viewPrivacy;
+        var padding = mobile ? 12 : detailsLayout ? 32 : 36;
         MainContent.Padding = new Thickness(padding, 0, padding, 12);
-        Toolbar.Padding = new Thickness(padding, viewApplication && !mobile ? 20 : 12, padding, viewApplication && !mobile ? 24 : 20);
+        Toolbar.Padding = new Thickness(padding, detailsLayout && !mobile ? 20 : 12, padding, detailsLayout && !mobile ? 24 : 20);
         DateBlock.IsVisible = available > 1050;
         Toolbar.ColumnDefinitions[0].Width = DateBlock.IsVisible ? 184 : 0;
         Toolbar.ColumnSpacing = mobile ? 0 : 16;

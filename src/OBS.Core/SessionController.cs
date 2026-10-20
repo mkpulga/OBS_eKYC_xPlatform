@@ -20,6 +20,8 @@ public sealed class SessionController(IAuthenticationGateway gateway, TimeProvid
     private bool revalidating;
     private bool validated;
     public StaffSession? Current { get; private set; }
+    // Stable through token rotation; replaced on a new sign-in, cleared before logout work.
+    internal object? Identity { get; private set; }
     public SignInStage Stage { get; private set; }
     public string Message { get; private set; } = "";
     public bool ContractAvailable => gateway.ContractAvailable;
@@ -46,7 +48,7 @@ public sealed class SessionController(IAuthenticationGateway gateway, TimeProvid
                     email = username; password = secret; Stage = SignInStage.Otp;
                     resendAfter = time.GetUtcNow().AddSeconds(60); Message = "Enter the six-digit OTP sent to you."; break;
                 case AuthOutcome.SignedIn when reply.Session?.Tokens.IsComplete == true:
-                    Current = reply.Session; password = null; email = null; failures = 0; validated = true;
+                    Current = reply.Session; Identity = new(); password = null; email = null; failures = 0; validated = true;
                     Stage = SignInStage.Protected; Message = ""; break;
                 case AuthOutcome.InvalidCredentials: Clear("Invalid email or password."); break;
                 case AuthOutcome.Locked: Clear("Your account is locked. Contact your administrator."); break;
@@ -215,7 +217,7 @@ public sealed class SessionController(IAuthenticationGateway gateway, TimeProvid
         {
         generation++;
         lifetime.Cancel(); lifetime.Dispose(); lifetime = new();
-        Current = null; password = null; email = null; failures = 0; resendAfter = default; validated = false;
+        Current = null; Identity = null; password = null; email = null; failures = 0; resendAfter = default; validated = false;
         Stage = SignInStage.Login; Message = message; Changed?.Invoke();
         }
     }

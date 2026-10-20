@@ -1,5 +1,7 @@
 # API evidence and differences
 
+This document describes the earlier 99-request migration evidence. The user selected the newer 16-request Privacy PII OTP & Dashboard collection on 2026-10-20; see the [current integration handover](api-integration/README.md) for its scope, mappings, evidence, and blockers. Earlier source-backed integrations below are retained.
+
 Evidence was inspected from the owner-provided source directory, the current Postman collection, and the revised requirements. The collection contains **99 requests and zero saved response examples**. [API inventory](evidence/api-inventory.json), [source hashes](evidence/source-hashes.json), and [RDLC inventory](evidence/report-inventory.json) distinguish examples from verified behavior. Inventory generation omits credentials, body values, and concrete record identifiers.
 
 The original `app.ini` already ends its base URL in `/obs/api/v1`; the new configuration normalizes that root without appending it twice. Its deployment selects Refactored/StandAlone. Its header key setting is `token=X-Obs-Token`; `utils/Dashboard.cs` loads this into `tokenHeaderKey`. `AccessAPI_v1.ApiPostRaw` adds that configured name with the `userAgent` setting as its **value**, not as a separate literal HTTP User-Agent header. Sanitized examples do not copy the real value.

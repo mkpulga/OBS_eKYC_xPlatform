@@ -1,16 +1,19 @@
 @using System.Globalization
 @implements IDisposable
+@inject PrivacyWorkspace PrivacyWorkspace
 
-<div class="dashboard-shell @(viewApplication ? "application-shell" : "") @(dark ? "dashboard-dark" : "") @(collapsed ? "sidebar-collapsed" : "") @(mobileOpen ? "sidebar-mobile-open" : "")">
+<div class="dashboard-shell @(viewApplication || viewPrivacy ? "application-shell" : "") @(dark ? "dashboard-dark" : "") @(collapsed ? "sidebar-collapsed" : "") @(mobileOpen ? "sidebar-mobile-open" : "")">
     <aside class="dashboard-sidebar" aria-label="Main navigation">
         <button class="dash-icon-button sidebar-toggle desktop-menu-toggle" @onclick="ToggleSidebar" aria-label="Toggle navigation" aria-expanded="@Pressed(!collapsed)"><DashboardIcon Name="menu" /></button>
         <button class="dash-icon-button sidebar-toggle mobile-menu-toggle" @onclick="() => mobileOpen = !mobileOpen" aria-label="Toggle navigation" aria-expanded="@Pressed(mobileOpen)"><DashboardIcon Name="menu" /></button>
         <div class="dash-profile"><span class="dash-avatar">@DashboardPresentation.Initials(Email)</span><div><strong title="@Email">@Email</strong><small>Staff workspace</small></div></div>
         <nav class="dash-navigation" aria-label="Staff modules">
             <p class="dash-nav-heading">OVERVIEW</p>
-            <button class="dash-nav-item @(selected is null && !viewApplication ? "active" : "")" @onclick="ShowOverview" aria-label="Dashboard" aria-current="@(selected is null && !viewApplication ? "page" : null)"><DashboardIcon /><span>Dashboard</span></button>
+            <button class="dash-nav-item @(selected is null && !viewApplication && !viewPrivacy ? "active" : "")" @onclick="ShowOverview" aria-label="Dashboard" aria-current="@(selected is null && !viewApplication && !viewPrivacy ? "page" : null)"><DashboardIcon /><span>Dashboard</span></button>
             @if (CanViewApplications)
             { <button class="dash-nav-item @(viewApplication ? "active" : "")" @onclick='() => OpenApplication("")' aria-label="View Application" aria-current="@(viewApplication ? "page" : null)"><DashboardIcon Name="identity" /><span>View Application</span></button> }
+            @if (PrivacyWorkspace.Available)
+            { <button class="dash-nav-item @(viewPrivacy ? "active" : "")" @onclick="OpenPrivacy" aria-current="@(viewPrivacy ? "page" : null)"><DashboardIcon Name="lock" /><span>Privacy Verification</span></button> }
             @foreach (var group in Modules.Select(DashboardPresentation.Module).GroupBy(module => module.Group))
             {
                 <p class="dash-nav-heading">@group.Key</p>
@@ -51,7 +54,9 @@
             {
                 <div class="dash-notice" role="status">@(string.IsNullOrEmpty(Message) ? notice : Message)<button class="dash-dismiss" @onclick="() => notice = null" aria-label="Dismiss notice" hidden="@(!string.IsNullOrEmpty(Message))">×</button></div>
             }
-            @if (viewApplication)
+            @if (viewPrivacy)
+            { <PrivacyVerification /> }
+            else if (viewApplication)
             {
                 <ViewApplication @key="applicationLoad" Number="@applicationNumber" OnWorkflow="Select" />
             }
@@ -129,7 +134,7 @@
     private NavigationEntry? selected;
     private bool dark, collapsed, mobileOpen;
     private string searchType = "Application Number", query = "", applicationNumber = "";
-    private bool viewApplication;
+    private bool viewApplication, viewPrivacy;
     private int applicationLoad;
     private bool CanViewApplications => Modules.Any(entry => entry.Authorities.Contains(CardholderVerificationService.Authority));
     private readonly CancellationTokenSource clockStop = new();
@@ -148,9 +153,10 @@
     private string ChartDescription => $"Sample activity, {DashboardSample.Description(period)}. " + string.Join(". ", DashboardSample.Activity(period).Select(item => $"{item.Label}: {item.Completed} completed, {item.InProgress} in progress"));
     private void ToggleTheme() => dark = !dark;
     private void ToggleSidebar() => collapsed = !collapsed;
-    private void ShowOverview() { selected = null; viewApplication = false; notice = null; mobileOpen = false; }
-    private void Select(NavigationEntry entry) { if (Modules.Contains(entry)) { selected = entry; viewApplication = false; notice = null; mobileOpen = false; } }
-    private void OpenApplication(string number) { if (!CanViewApplications) { notice = ApplicationPresentation.Status(ApplicationOutcome.NotPermitted); return; } applicationNumber = query = number.Trim(); applicationLoad++; selected = null; viewApplication = true; notice = null; mobileOpen = false; }
+    private void ShowOverview() { selected = null; viewApplication = viewPrivacy = false; notice = null; mobileOpen = false; }
+    private void Select(NavigationEntry entry) { if (Modules.Contains(entry)) { selected = entry; viewApplication = viewPrivacy = false; notice = null; mobileOpen = false; } }
+    private void OpenApplication(string number) { if (!CanViewApplications) { notice = ApplicationPresentation.Status(ApplicationOutcome.NotPermitted); return; } applicationNumber = query = number.Trim(); applicationLoad++; selected = null; viewApplication = true; viewPrivacy = false; notice = null; mobileOpen = false; }
+    private void OpenPrivacy() { if (PrivacyWorkspace.Available) { selected = null; viewApplication = false; viewPrivacy = true; notice = null; mobileOpen = false; } }
     private void Search() { if (searchType == "Application Number" || searchType == "Reference No.") OpenApplication(query); else notice = string.IsNullOrWhiteSpace(query) ? "Enter a value to search." : "This search method is not available yet. Select Application Number."; }
     private void ShowScannerNotice() => notice = "QR scanning is not available on this dashboard yet.";
     private void ShowNotifications() => notice = "No notifications to display. This dashboard displays sample data.";

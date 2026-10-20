@@ -1,0 +1,810 @@
+{
+  "Scope": "Owner-selected 16-request Privacy PII OTP & Dashboard contract",
+  "CollectionSha256": "052A352871191D39209951F755CC76969DF9D20B50178E0D7779849D2495FABE",
+  "RequestCount": 16,
+  "SavedResponseExamples": 0,
+  "CollectionAuthentication": "bearer",
+  "Variables": [
+    {
+      "Classification": "Configuration",
+      "Name": "baseUrl",
+      "ValueOmitted": true
+    },
+    {
+      "Classification": "Secret",
+      "Name": "accessToken",
+      "ValueOmitted": true
+    },
+    {
+      "Classification": "Personal identifier",
+      "Name": "username",
+      "ValueOmitted": true
+    },
+    {
+      "Classification": "Secret",
+      "Name": "password",
+      "ValueOmitted": true
+    },
+    {
+      "Classification": "Secret",
+      "Name": "loginOtp",
+      "ValueOmitted": true
+    },
+    {
+      "Classification": "Personal identifier",
+      "Name": "applicationId",
+      "ValueOmitted": true
+    },
+    {
+      "Classification": "Personal identifier",
+      "Name": "citizenId",
+      "ValueOmitted": true
+    },
+    {
+      "Classification": "Secret",
+      "Name": "otp",
+      "ValueOmitted": true
+    },
+    {
+      "Classification": "Secret",
+      "Name": "piiAccessToken",
+      "ValueOmitted": true
+    }
+  ],
+  "RequestFieldsAndScriptsAreNotLiveEvidence": true,
+  "Requests": [
+    {
+      "Id": "P01",
+      "Folder": "0. Auth",
+      "Name": "Authenticate (request login OTP)",
+      "Method": "POST",
+      "Path": "/api/v1/session/authenticate",
+      "BaseVariable": "baseUrl",
+      "Authentication": "noauth",
+      "Headers": [
+        {
+          "LiteralValueOmitted": true,
+          "Disabled": false,
+          "Name": "Content-Type",
+          "VariableReferences": []
+        },
+        {
+          "LiteralValueOmitted": true,
+          "Disabled": false,
+          "Name": "X-Obs-Token",
+          "VariableReferences": []
+        }
+      ],
+      "QueryParameters": [],
+      "PathVariables": [],
+      "BodyMode": "raw",
+      "BodyShape": {
+        "Fields": {
+          "username": {
+            "Kind": "String",
+            "VariableReferences": [
+              "username"
+            ]
+          },
+          "password": {
+            "Kind": "String",
+            "VariableReferences": [
+              "password"
+            ]
+          }
+        },
+        "Kind": "Object"
+      },
+      "FieldRequiredness": "No formal required/optional/nullable schema; collection fields and descriptions are evidence only",
+      "ResponseExamples": 0,
+      "ScriptHttpAssertions": [
+        200
+      ],
+      "ScriptEvents": [
+        "test"
+      ],
+      "ScriptLogsRawResponse": false,
+      "CoverageStatus": "Already supported",
+      "Feature": "Staff login: request email OTP",
+      "Implementation": "SourceAuthenticationGateway.AuthenticateAsync",
+      "WorkflowAndBlocker": "Existing login UI; selected-deployment acceptance pending",
+      "SourceFile": "src/OBS.Core/SourceAuthenticationGateway.cs",
+      "Verification": "Mock-tested",
+      "LiveVerification": "Not tested",
+      "Evidence": "Selected collection descriptions/scripts and local source; no assistant-authenticated API verification"
+    },
+    {
+      "Id": "P02",
+      "Folder": "0. Auth",
+      "Name": "Authenticate (submit login OTP)",
+      "Method": "POST",
+      "Path": "/api/v1/session/authenticate",
+      "BaseVariable": "baseUrl",
+      "Authentication": "noauth",
+      "Headers": [
+        {
+          "LiteralValueOmitted": true,
+          "Disabled": false,
+          "Name": "Content-Type",
+          "VariableReferences": []
+        },
+        {
+          "LiteralValueOmitted": true,
+          "Disabled": false,
+          "Name": "X-Obs-Token",
+          "VariableReferences": []
+        }
+      ],
+      "QueryParameters": [],
+      "PathVariables": [],
+      "BodyMode": "raw",
+      "BodyShape": {
+        "Fields": {
+          "username": {
+            "Kind": "String",
+            "VariableReferences": [
+              "username"
+            ]
+          },
+          "password": {
+            "Kind": "String",
+            "VariableReferences": [
+              "password"
+            ]
+          },
+          "otp": {
+            "Kind": "String",
+            "VariableReferences": [
+              "loginOtp"
+            ]
+          }
+        },
+        "Kind": "Object"
+      },
+      "FieldRequiredness": "No formal required/optional/nullable schema; collection fields and descriptions are evidence only",
+      "ResponseExamples": 0,
+      "ScriptHttpAssertions": [
+        200
+      ],
+      "ScriptEvents": [
+        "test"
+      ],
+      "ScriptLogsRawResponse": false,
+      "CoverageStatus": "Already supported",
+      "Feature": "Staff login: verify OTP",
+      "Implementation": "SourceAuthenticationGateway.AuthenticateAsync",
+      "WorkflowAndBlocker": "Body and exact refresh/XSRF cookie names supplied by user; synthetic session parse passes; renewal and full UI acceptance pending",
+      "SourceFile": "src/OBS.Core/SourceAuthenticationGateway.cs",
+      "Verification": "Mock-tested",
+      "LiveVerification": "Not tested",
+      "Evidence": "Collection plus user-reported successful login body and both exact cookie names; synthetic complete-session mapping; renewal unverified"
+    },
+    {
+      "Id": "P03",
+      "Folder": "0. Auth",
+      "Name": "Terminate (logout)",
+      "Method": "POST",
+      "Path": "/api/v1/session/terminate",
+      "BaseVariable": "baseUrl",
+      "Authentication": "bearer",
+      "Headers": [
+        {
+          "LiteralValueOmitted": true,
+          "Disabled": false,
+          "Name": "X-Obs-Token",
+          "VariableReferences": []
+        }
+      ],
+      "QueryParameters": [],
+      "PathVariables": [],
+      "BodyMode": null,
+      "BodyShape": null,
+      "FieldRequiredness": "No formal required/optional/nullable schema; collection fields and descriptions are evidence only",
+      "ResponseExamples": 0,
+      "ScriptHttpAssertions": [],
+      "ScriptEvents": [],
+      "ScriptLogsRawResponse": false,
+      "CoverageStatus": "Implemented",
+      "Feature": "Staff logout",
+      "Implementation": "SourceAuthenticationGateway.TerminateAsync",
+      "WorkflowAndBlocker": "Bodyless Privacy variant; replacement login mode remains guarded pending session compatibility; parallel screen retains existing logout",
+      "SourceFile": "src/OBS.Core/SourceAuthenticationGateway.cs",
+      "Verification": "Mock-tested",
+      "LiveVerification": "Not tested",
+      "Evidence": "Selected collection descriptions/scripts and local source; no assistant-authenticated API verification"
+    },
+    {
+      "Id": "P04",
+      "Folder": "1. Privacy OTP",
+      "Name": "Request privacy OTP",
+      "Method": "POST",
+      "Path": "/api/v1/privacy/otp/request",
+      "BaseVariable": "baseUrl",
+      "Authentication": "bearer",
+      "Headers": [
+        {
+          "LiteralValueOmitted": true,
+          "Disabled": false,
+          "Name": "Content-Type",
+          "VariableReferences": []
+        },
+        {
+          "LiteralValueOmitted": true,
+          "Disabled": false,
+          "Name": "X-Obs-Token",
+          "VariableReferences": []
+        }
+      ],
+      "QueryParameters": [],
+      "PathVariables": [],
+      "BodyMode": "raw",
+      "BodyShape": {
+        "Fields": {
+          "applicationId": {
+            "Kind": "String",
+            "VariableReferences": [
+              "applicationId"
+            ]
+          }
+        },
+        "Kind": "Object"
+      },
+      "FieldRequiredness": "No formal required/optional/nullable schema; collection fields and descriptions are evidence only",
+      "ResponseExamples": 0,
+      "ScriptHttpAssertions": [
+        200
+      ],
+      "ScriptEvents": [
+        "test"
+      ],
+      "ScriptLogsRawResponse": false,
+      "CoverageStatus": "Implemented",
+      "Feature": "Applicant reveal: request OTP",
+      "Implementation": "PrivacyApiService.RequestOtpAsync",
+      "WorkflowAndBlocker": "Wired in both parallel screens through shared state/controller; explicit request only; synthetic-tested; live acceptance pending",
+      "SourceFile": "src/OBS.Core/PrivacyApi.cs",
+      "Verification": "Mock-tested",
+      "LiveVerification": "Not tested",
+      "Evidence": "Selected collection descriptions/scripts and local source; no assistant-authenticated API verification"
+    },
+    {
+      "Id": "P05",
+      "Folder": "1. Privacy OTP",
+      "Name": "Verify privacy OTP",
+      "Method": "POST",
+      "Path": "/api/v1/privacy/otp/verify",
+      "BaseVariable": "baseUrl",
+      "Authentication": "bearer",
+      "Headers": [
+        {
+          "LiteralValueOmitted": true,
+          "Disabled": false,
+          "Name": "Content-Type",
+          "VariableReferences": []
+        },
+        {
+          "LiteralValueOmitted": true,
+          "Disabled": false,
+          "Name": "X-Obs-Token",
+          "VariableReferences": []
+        }
+      ],
+      "QueryParameters": [],
+      "PathVariables": [],
+      "BodyMode": "raw",
+      "BodyShape": {
+        "Fields": {
+          "applicationId": {
+            "Kind": "String",
+            "VariableReferences": [
+              "applicationId"
+            ]
+          },
+          "otp": {
+            "Kind": "String",
+            "VariableReferences": [
+              "otp"
+            ]
+          }
+        },
+        "Kind": "Object"
+      },
+      "FieldRequiredness": "No formal required/optional/nullable schema; collection fields and descriptions are evidence only",
+      "ResponseExamples": 0,
+      "ScriptHttpAssertions": [
+        200
+      ],
+      "ScriptEvents": [
+        "test"
+      ],
+      "ScriptLogsRawResponse": false,
+      "CoverageStatus": "Implemented",
+      "Feature": "Applicant reveal: verify OTP",
+      "Implementation": "PrivacyApiService.VerifyOtpAsync; PiiAccessToken.FromVerification",
+      "WorkflowAndBlocker": "Wired in approved dialogs; cookie then separate status; screen/session/applicant lifetime synthetic-tested; live acceptance pending",
+      "SourceFile": "src/OBS.Core/PrivacyApi.cs",
+      "Verification": "Mock-tested",
+      "LiveVerification": "Not tested",
+      "Evidence": "Collection plus user-reported HTTP 200/business 0 and exact PII cookie/status metadata; synthetic tests; no assistant-authenticated verification"
+    },
+    {
+      "Id": "P06",
+      "Folder": "1. Privacy OTP",
+      "Name": "Verification status",
+      "Method": "GET",
+      "Path": "/api/v1/privacy/verification/status/{{applicationId}}",
+      "BaseVariable": "baseUrl",
+      "Authentication": "bearer",
+      "Headers": [
+        {
+          "LiteralValueOmitted": false,
+          "Disabled": true,
+          "Name": "X-PII-Access-Token",
+          "VariableReferences": [
+            "piiAccessToken"
+          ]
+        },
+        {
+          "LiteralValueOmitted": true,
+          "Disabled": false,
+          "Name": "X-Obs-Token",
+          "VariableReferences": []
+        }
+      ],
+      "QueryParameters": [],
+      "PathVariables": [
+        "applicationId"
+      ],
+      "BodyMode": null,
+      "BodyShape": null,
+      "FieldRequiredness": "No formal required/optional/nullable schema; collection fields and descriptions are evidence only",
+      "ResponseExamples": 0,
+      "ScriptHttpAssertions": [
+        200
+      ],
+      "ScriptEvents": [
+        "test"
+      ],
+      "ScriptLogsRawResponse": true,
+      "CoverageStatus": "Implemented",
+      "Feature": "Applicant verification validity",
+      "Implementation": "PrivacyApiService.GetStatusAsync; GetVerificationStatusAsync; PrivacyStatusReply.FromApiResult",
+      "WorkflowAndBlocker": "Wired before reveal and after staff token rotation; expiry/cancellation clear screen; live enforcement pending",
+      "SourceFile": "src/OBS.Core/PrivacyApi.cs",
+      "Verification": "Mock-tested",
+      "LiveVerification": "Not tested",
+      "Evidence": "Collection plus user-reported HTTP 200/business 0 and exact PII cookie/status metadata; synthetic tests; no assistant-authenticated verification"
+    },
+    {
+      "Id": "P07",
+      "Folder": "2. Protected Sections (after OTP)",
+      "Name": "Get Bio Details",
+      "Method": "GET",
+      "Path": "/api/v1/privacy/applicants/{{citizenId}}/bio",
+      "BaseVariable": "baseUrl",
+      "Authentication": "bearer",
+      "Headers": [
+        {
+          "LiteralValueOmitted": false,
+          "Disabled": false,
+          "Name": "X-PII-Access-Token",
+          "VariableReferences": [
+            "piiAccessToken"
+          ]
+        },
+        {
+          "LiteralValueOmitted": true,
+          "Disabled": false,
+          "Name": "X-Obs-Token",
+          "VariableReferences": []
+        }
+      ],
+      "QueryParameters": [],
+      "PathVariables": [
+        "citizenId"
+      ],
+      "BodyMode": null,
+      "BodyShape": null,
+      "FieldRequiredness": "No formal required/optional/nullable schema; collection fields and descriptions are evidence only",
+      "ResponseExamples": 0,
+      "ScriptHttpAssertions": [],
+      "ScriptEvents": [],
+      "ScriptLogsRawResponse": false,
+      "CoverageStatus": "Implemented",
+      "Feature": "Applicant bio card",
+      "Implementation": "PrivacyApiService.GetBioAsync; GetBioSnapshotAsync",
+      "WorkflowAndBlocker": "Wired in both parallel screens using entered citizen ID; exact claim/expiry validation; live acceptance pending",
+      "SourceFile": "src/OBS.Core/PrivacyApi.cs",
+      "Verification": "Mock-tested",
+      "LiveVerification": "Not tested",
+      "Evidence": "Collection plus user-supplied preproduction body structure and synthetic typed mapping tests; HTTP statuses not supplied; no assistant-authenticated verification"
+    },
+    {
+      "Id": "P08",
+      "Folder": "2. Protected Sections (after OTP)",
+      "Name": "Get Address",
+      "Method": "GET",
+      "Path": "/api/v1/privacy/applicants/{{citizenId}}/address",
+      "BaseVariable": "baseUrl",
+      "Authentication": "bearer",
+      "Headers": [
+        {
+          "LiteralValueOmitted": false,
+          "Disabled": false,
+          "Name": "X-PII-Access-Token",
+          "VariableReferences": [
+            "piiAccessToken"
+          ]
+        },
+        {
+          "LiteralValueOmitted": true,
+          "Disabled": false,
+          "Name": "X-Obs-Token",
+          "VariableReferences": []
+        }
+      ],
+      "QueryParameters": [],
+      "PathVariables": [
+        "citizenId"
+      ],
+      "BodyMode": null,
+      "BodyShape": null,
+      "FieldRequiredness": "No formal required/optional/nullable schema; collection fields and descriptions are evidence only",
+      "ResponseExamples": 0,
+      "ScriptHttpAssertions": [],
+      "ScriptEvents": [],
+      "ScriptLogsRawResponse": false,
+      "CoverageStatus": "Implemented",
+      "Feature": "Applicant address fields",
+      "Implementation": "PrivacyApiService.GetAddressAsync; GetAddressSnapshotAsync",
+      "WorkflowAndBlocker": "Wired with ordered address rows and independent hide; exact citizen ID/claim/expiry validation; live acceptance pending",
+      "SourceFile": "src/OBS.Core/PrivacyApi.cs",
+      "Verification": "Mock-tested",
+      "LiveVerification": "Not tested",
+      "Evidence": "Collection plus user-supplied preproduction body structure and synthetic typed mapping tests; HTTP statuses not supplied; no assistant-authenticated verification"
+    },
+    {
+      "Id": "P09",
+      "Folder": "2. Protected Sections (after OTP)",
+      "Name": "Get Emergency Contact",
+      "Method": "GET",
+      "Path": "/api/v1/privacy/applicants/{{citizenId}}/emergency",
+      "BaseVariable": "baseUrl",
+      "Authentication": "bearer",
+      "Headers": [
+        {
+          "LiteralValueOmitted": false,
+          "Disabled": false,
+          "Name": "X-PII-Access-Token",
+          "VariableReferences": [
+            "piiAccessToken"
+          ]
+        },
+        {
+          "LiteralValueOmitted": true,
+          "Disabled": false,
+          "Name": "X-Obs-Token",
+          "VariableReferences": []
+        }
+      ],
+      "QueryParameters": [],
+      "PathVariables": [
+        "citizenId"
+      ],
+      "BodyMode": null,
+      "BodyShape": null,
+      "FieldRequiredness": "No formal required/optional/nullable schema; collection fields and descriptions are evidence only",
+      "ResponseExamples": 0,
+      "ScriptHttpAssertions": [],
+      "ScriptEvents": [],
+      "ScriptLogsRawResponse": false,
+      "CoverageStatus": "Implemented",
+      "Feature": "Applicant emergency card",
+      "Implementation": "PrivacyApiService.GetEmergencyAsync; GetEmergencySnapshotAsync",
+      "WorkflowAndBlocker": "Wired with nullable suffix and ordered rows; exact citizen ID/claim/expiry validation; live acceptance pending",
+      "SourceFile": "src/OBS.Core/PrivacyApi.cs",
+      "Verification": "Mock-tested",
+      "LiveVerification": "Not tested",
+      "Evidence": "Collection plus user-supplied preproduction body structure and synthetic typed mapping tests; HTTP statuses not supplied; no assistant-authenticated verification"
+    },
+    {
+      "Id": "P10",
+      "Folder": "2. Protected Sections (after OTP)",
+      "Name": "Get Educational Information",
+      "Method": "GET",
+      "Path": "/api/v1/privacy/applicants/{{citizenId}}/education",
+      "BaseVariable": "baseUrl",
+      "Authentication": "bearer",
+      "Headers": [
+        {
+          "LiteralValueOmitted": false,
+          "Disabled": false,
+          "Name": "X-PII-Access-Token",
+          "VariableReferences": [
+            "piiAccessToken"
+          ]
+        },
+        {
+          "LiteralValueOmitted": true,
+          "Disabled": false,
+          "Name": "X-Obs-Token",
+          "VariableReferences": []
+        }
+      ],
+      "QueryParameters": [],
+      "PathVariables": [
+        "citizenId"
+      ],
+      "BodyMode": null,
+      "BodyShape": null,
+      "FieldRequiredness": "No formal required/optional/nullable schema; collection fields and descriptions are evidence only",
+      "ResponseExamples": 0,
+      "ScriptHttpAssertions": [],
+      "ScriptEvents": [],
+      "ScriptLogsRawResponse": false,
+      "CoverageStatus": "Implemented",
+      "Feature": "Applicant education card",
+      "Implementation": "PrivacyApiService.GetEducationAsync; GetEducationSnapshotAsync",
+      "WorkflowAndBlocker": "Wired with observed other-info fields; exact citizen ID/claim/expiry validation; live acceptance pending",
+      "SourceFile": "src/OBS.Core/PrivacyApi.cs",
+      "Verification": "Mock-tested",
+      "LiveVerification": "Not tested",
+      "Evidence": "Collection plus user-supplied preproduction body structure and synthetic typed mapping tests; HTTP statuses not supplied; no assistant-authenticated verification"
+    },
+    {
+      "Id": "P11",
+      "Folder": "3. Applicant Detail (redacted until verified)",
+      "Name": "Information Gathering - specific applicant",
+      "Method": "GET",
+      "Path": "/api/v1/information/gathering/{{citizenId}}",
+      "BaseVariable": "baseUrl",
+      "Authentication": "bearer",
+      "Headers": [
+        {
+          "LiteralValueOmitted": false,
+          "Disabled": false,
+          "Name": "X-PII-Access-Token",
+          "VariableReferences": [
+            "piiAccessToken"
+          ]
+        },
+        {
+          "LiteralValueOmitted": true,
+          "Disabled": false,
+          "Name": "X-Obs-Token",
+          "VariableReferences": []
+        }
+      ],
+      "QueryParameters": [],
+      "PathVariables": [
+        "citizenId"
+      ],
+      "BodyMode": null,
+      "BodyShape": null,
+      "FieldRequiredness": "No formal required/optional/nullable schema; collection fields and descriptions are evidence only",
+      "ResponseExamples": 0,
+      "ScriptHttpAssertions": [
+        200
+      ],
+      "ScriptEvents": [
+        "test"
+      ],
+      "ScriptLogsRawResponse": false,
+      "CoverageStatus": "Implemented",
+      "Feature": "Information Gathering detail",
+      "Implementation": "PrivacyApiService.GetInformationGatheringAsync; GetInformationGatheringSnapshotAsync",
+      "WorkflowAndBlocker": "Observed authorized detail mapped; server flags intersect status claims; canonical lookup and screen workflow pending",
+      "SourceFile": "src/OBS.Core/PrivacyApi.cs",
+      "Verification": "Mock-tested",
+      "LiveVerification": "Not tested",
+      "Evidence": "Collection plus user-supplied preproduction body structure and synthetic typed mapping tests; HTTP statuses not supplied; no assistant-authenticated verification"
+    },
+    {
+      "Id": "P12",
+      "Folder": "3. Applicant Detail (redacted until verified)",
+      "Name": "Cardholder Update - specific applicant",
+      "Method": "GET",
+      "Path": "/api/v1/cardholder/update/{{citizenId}}",
+      "BaseVariable": "baseUrl",
+      "Authentication": "bearer",
+      "Headers": [
+        {
+          "LiteralValueOmitted": false,
+          "Disabled": false,
+          "Name": "X-PII-Access-Token",
+          "VariableReferences": [
+            "piiAccessToken"
+          ]
+        },
+        {
+          "LiteralValueOmitted": true,
+          "Disabled": false,
+          "Name": "X-Obs-Token",
+          "VariableReferences": []
+        }
+      ],
+      "QueryParameters": [],
+      "PathVariables": [
+        "citizenId"
+      ],
+      "BodyMode": null,
+      "BodyShape": null,
+      "FieldRequiredness": "No formal required/optional/nullable schema; collection fields and descriptions are evidence only",
+      "ResponseExamples": 0,
+      "ScriptHttpAssertions": [],
+      "ScriptEvents": [],
+      "ScriptLogsRawResponse": false,
+      "CoverageStatus": "Implemented",
+      "Feature": "Cardholder Update detail",
+      "Implementation": "PrivacyApiService.GetCardholderUpdateAsync; GetCardholderUpdateSnapshotAsync",
+      "WorkflowAndBlocker": "Observed redacted detail mapped; withheld differs from authorized empty arrays; canonical lookup and screen workflow pending",
+      "SourceFile": "src/OBS.Core/PrivacyApi.cs",
+      "Verification": "Mock-tested",
+      "LiveVerification": "Not tested",
+      "Evidence": "Collection plus user-supplied preproduction body structure and synthetic typed mapping tests; HTTP statuses not supplied; no assistant-authenticated verification"
+    },
+    {
+      "Id": "P13",
+      "Folder": "4. Dashboard",
+      "Name": "Get Dashboard",
+      "Method": "GET",
+      "Path": "/api/v1/dashboard",
+      "BaseVariable": "baseUrl",
+      "Authentication": "bearer",
+      "Headers": [
+        {
+          "LiteralValueOmitted": true,
+          "Disabled": false,
+          "Name": "X-Obs-Token",
+          "VariableReferences": []
+        }
+      ],
+      "QueryParameters": [],
+      "PathVariables": [],
+      "BodyMode": null,
+      "BodyShape": null,
+      "FieldRequiredness": "No formal required/optional/nullable schema; collection fields and descriptions are evidence only",
+      "ResponseExamples": 0,
+      "ScriptHttpAssertions": [
+        200
+      ],
+      "ScriptEvents": [
+        "test"
+      ],
+      "ScriptLogsRawResponse": false,
+      "CoverageStatus": "Implemented",
+      "Feature": "Dashboard overview",
+      "Implementation": "PrivacyApiService.GetDashboardAsync; GetDashboardSnapshotAsync; DashboardReply.FromApiResult",
+      "WorkflowAndBlocker": "User-supplied response fields mapped and mock-tested; screen binding and period semantics pending; current cards remain sample data",
+      "SourceFile": "src/OBS.Core/PrivacyApi.cs",
+      "Verification": "Mock-tested",
+      "LiveVerification": "Not tested",
+      "Evidence": "Selected collection, user-supplied preproduction response shape and synthetic mapping tests; dashboard HTTP status not reported"
+    },
+    {
+      "Id": "P14",
+      "Folder": "5. Legacy Personal Info OTP",
+      "Name": "Legacy - Request OTP",
+      "Method": "POST",
+      "Path": "/api/v1/personal/info/otp/{{citizenId}}",
+      "BaseVariable": "baseUrl",
+      "Authentication": "bearer",
+      "Headers": [
+        {
+          "LiteralValueOmitted": true,
+          "Disabled": false,
+          "Name": "X-Obs-Token",
+          "VariableReferences": []
+        }
+      ],
+      "QueryParameters": [],
+      "PathVariables": [
+        "citizenId"
+      ],
+      "BodyMode": null,
+      "BodyShape": null,
+      "FieldRequiredness": "No formal required/optional/nullable schema; collection fields and descriptions are evidence only",
+      "ResponseExamples": 0,
+      "ScriptHttpAssertions": [],
+      "ScriptEvents": [],
+      "ScriptLogsRawResponse": false,
+      "CoverageStatus": "Deferred",
+      "Feature": "Alternate personal-info OTP facade",
+      "Implementation": "",
+      "WorkflowAndBlocker": "Collection explicitly prefers modern privacy OTP; no existing caller found",
+      "SourceFile": null,
+      "Verification": "Not tested",
+      "LiveVerification": "Not tested",
+      "Evidence": "Selected collection descriptions/scripts and local source; no assistant-authenticated API verification"
+    },
+    {
+      "Id": "P15",
+      "Folder": "5. Legacy Personal Info OTP",
+      "Name": "Legacy - Resend OTP",
+      "Method": "POST",
+      "Path": "/api/v1/personal/info/otp/{{citizenId}}/resend",
+      "BaseVariable": "baseUrl",
+      "Authentication": "bearer",
+      "Headers": [
+        {
+          "LiteralValueOmitted": true,
+          "Disabled": false,
+          "Name": "X-Obs-Token",
+          "VariableReferences": []
+        }
+      ],
+      "QueryParameters": [],
+      "PathVariables": [
+        "citizenId"
+      ],
+      "BodyMode": null,
+      "BodyShape": null,
+      "FieldRequiredness": "No formal required/optional/nullable schema; collection fields and descriptions are evidence only",
+      "ResponseExamples": 0,
+      "ScriptHttpAssertions": [],
+      "ScriptEvents": [],
+      "ScriptLogsRawResponse": false,
+      "CoverageStatus": "Deferred",
+      "Feature": "Alternate personal-info OTP facade",
+      "Implementation": "",
+      "WorkflowAndBlocker": "No confirmed legacy caller; do not invent modern resend behavior or automatic fallback",
+      "SourceFile": null,
+      "Verification": "Not tested",
+      "LiveVerification": "Not tested",
+      "Evidence": "Selected collection descriptions/scripts and local source; no assistant-authenticated API verification"
+    },
+    {
+      "Id": "P16",
+      "Folder": "5. Legacy Personal Info OTP",
+      "Name": "Legacy - Verify OTP",
+      "Method": "POST",
+      "Path": "/api/v1/personal/info/otp/{{citizenId}}/verify",
+      "BaseVariable": "baseUrl",
+      "Authentication": "bearer",
+      "Headers": [
+        {
+          "LiteralValueOmitted": true,
+          "Disabled": false,
+          "Name": "Content-Type",
+          "VariableReferences": []
+        }
+      ],
+      "QueryParameters": [
+        {
+          "Disabled": false,
+          "Source": "Structured URL query",
+          "Name": "X-Obs-Token",
+          "ValueOmitted": true
+        }
+      ],
+      "PathVariables": [
+        "citizenId"
+      ],
+      "BodyMode": "raw",
+      "BodyShape": {
+        "Fields": {
+          "otp": {
+            "Kind": "String",
+            "VariableReferences": [
+              "otp"
+            ]
+          }
+        },
+        "Kind": "Object"
+      },
+      "FieldRequiredness": "No formal required/optional/nullable schema; collection fields and descriptions are evidence only",
+      "ResponseExamples": 0,
+      "ScriptHttpAssertions": [],
+      "ScriptEvents": [],
+      "ScriptLogsRawResponse": false,
+      "CoverageStatus": "Deferred",
+      "Feature": "Alternate personal-info OTP facade",
+      "Implementation": "",
+      "WorkflowAndBlocker": "No confirmed legacy caller; literal credential-bearing query omitted from inventory",
+      "SourceFile": null,
+      "Verification": "Not tested",
+      "LiveVerification": "Not tested",
+      "Evidence": "Selected collection descriptions/scripts and local source; no assistant-authenticated API verification"
+    }
+  ]
+}

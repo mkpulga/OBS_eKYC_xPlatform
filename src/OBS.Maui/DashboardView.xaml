@@ -89,6 +89,7 @@
             <ScrollView Grid.Row="1"><VerticalStackLayout x:Name="MainContent" Padding="36,0,36,12" Spacing="14">
                 <Border x:Name="NoticeCard" Style="{StaticResource Card}" IsVisible="False" Padding="16,12"><Grid ColumnDefinitions="*,40"><Label x:Name="NoticeLabel" VerticalOptions="Center" FontSize="13" /><Button Grid.Column="1" Text="×" Clicked="OnDismissNotice" SemanticProperties.Description="Dismiss notice" /></Grid></Border>
                 <ContentView x:Name="ApplicationHost" IsVisible="False" />
+                <ContentView x:Name="PrivacyHost" IsVisible="False" />
                 <Border x:Name="WorkflowCard" Style="{StaticResource Card}" IsVisible="False"><VerticalStackLayout Spacing="16"><Label x:Name="WorkflowTitle" Style="{StaticResource Heading}" /><Label x:Name="WorkflowPlaceholder" Text="This workflow is not available yet." />
                     <VerticalStackLayout x:Name="CardholderPanel" IsVisible="False" Spacing="10">
                         <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
@@ -124,5 +125,6 @@
                 </Grid>
             </VerticalStackLayout></ScrollView>
         </Grid>
+        <ContentView x:Name="PrivacyDialogHost" Grid.ColumnSpan="2" ZIndex="100" IsVisible="False" />
     </Grid>
 </ContentView>

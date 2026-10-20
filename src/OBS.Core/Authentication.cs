@@ -61,7 +61,7 @@ public static class AuthenticationRequests
 {
     public static object Authenticate(string username, string password, string? otp) => otp is null
         ? new { username, password } : (object)new { username, password, otp };
-    public static object Resend(ApiContract contract, string username, string password) => contract == ApiContract.Refactored
+    public static object Resend(ApiContract contract, string username, string password) => contract is ApiContract.Refactored or ApiContract.Privacy
         ? new { username, password, guiinterface = "obs" } : (object)new { username, password, guiinterface = "obs", module = "", otp = "" };
     public static object Terminate(string userName) => new { userName };
     public static object Refresh() => new { };

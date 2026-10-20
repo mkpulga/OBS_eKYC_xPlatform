@@ -1,0 +1,175 @@
+@implements IDisposable
+@inject PrivacyWorkspace Workspace
+@inject SessionController Session
+@inject IJSRuntime JS
+
+<div class="application-view privacy-workspace" aria-labelledby="privacy-title">
+@if (state is null || !state.Selected)
+{
+    <section class="dash-card application-state" role="status">
+        <span class="application-state-icon"><DashboardIcon Name="identity" /></span>
+        <h1 id="privacy-title">Privacy Verification</h1>
+        <p>@(state is null ? "Privacy verification is unavailable for this configuration." : "Enter a citizen ID to view an applicant’s protected details.")</p>
+        @if (state is not null) { @ApplicantSelector() }
+    </section>
+}
+else
+{
+    <section class="dash-card privacy-selector-strip">
+        <h1 id="privacy-title" class="sr-only">Privacy Verification</h1>
+        @ApplicantSelector()
+    </section>
+    <div class="application-columns">
+        <section class="dash-card application-profile" id="privacy-account" tabindex="-1" aria-label="Applicant account">
+            <div class="application-cover"></div>
+            <div class="application-photo"><DashboardIcon Name="user" /><button class="application-camera" disabled title="@ApplicationPresentation.EditUnavailable" aria-label="Change applicant photo"><DashboardIcon Name="camera" /></button></div>
+            <div class="application-name"><h2>@(state.IsVisible(PrivacySection.Bio) ? Value(PrivacySection.Bio, "Full name") : "Applicant")</h2>@EditButton("Edit applicant name")@Eye(PrivacySection.Bio, "applicant profile")</div>
+            <div class="application-contact"><DashboardIcon Name="hash" /><span>Citizen ID: @state.CitizenId</span></div>
+            <div class="application-contact"><DashboardIcon Name="mail" /><span>Email: Not provided</span></div>
+            <div class="application-contact"><DashboardIcon Name="phone" /><span>Phone: Not provided</span></div>
+            <div class="application-badges"><div><small>Account</small><strong>@(state.IsVisible(PrivacySection.Bio) ? Value(PrivacySection.Bio, "Account status") : "Hidden")</strong></div><div><small>Card</small><strong>Not provided</strong></div></div>
+            <div class="application-address" id="privacy-address" tabindex="-1">
+                <div class="application-section-title"><h3>Address</h3>@EditButton("Edit address")@Eye(PrivacySection.Address, "Address")</div>
+                @if (state.IsVisible(PrivacySection.Address))
+                {
+                    var fields = state.Fields(PrivacySection.Address);
+                    if (fields.Count == 0) { <p>No details returned for this section.</p> }
+                    else
+                    {
+                        @for (var i = 0; i < fields.Count; i += 10)
+                        {
+                            var row = fields.Skip(i).Take(10).ToArray();
+                            <p><small>@row[0].Label.Split(" · Specific address")[0]</small><br />@string.Join(", ", row.Select(f => f.Value).Where(v => v != "Not provided"))</p>
+                        }
+                    }
+                }
+                else { <p>@Masked()</p> }
+            </div>
+            <div class="application-map"><span class="map-park one"></span><span class="map-park two"></span><span class="map-road one"></span><span class="map-road two"></span><span class="map-road three"></span><span class="map-road four"></span><button class="privacy-map-button" disabled title="Map preview is unavailable in this screen."><DashboardIcon Name="pin" />View Map</button></div>
+        </section>
+        <div class="application-personal">
+            <section class="dash-card application-section" id="privacy-bio" tabindex="-1" aria-labelledby="privacy-bio-title">
+                @Heading("Bio Details", "identity", "privacy-bio-title", PrivacySection.Bio)
+                <dl>
+                    <div><dt>Birth full name</dt><dd class="application-edit-value">@ProtectedValue(PrivacySection.Bio, "Full name")@EditButton("Edit bio details")</dd></div>
+                    <div><dt>Birthday / Gender</dt><dd>@ProtectedValue(PrivacySection.Bio, "Date of birth", "Gender")</dd></div>
+                    <div><dt>Birthplace</dt><dd>@ProtectedValue(PrivacySection.Bio, "Birthplace")</dd></div>
+                    <div><dt>Blood type</dt><dd>@ProtectedValue(PrivacySection.Bio, "Blood type")</dd></div>
+                </dl>
+            </section>
+            <section class="dash-card application-section" id="privacy-emergency" tabindex="-1" aria-labelledby="privacy-emergency-title">
+                @Heading("Emergency Contact Information", "phone", "privacy-emergency-title", PrivacySection.Emergency)
+                @if (state.IsVisible(PrivacySection.Emergency))
+                {
+                    var fields = state.Fields(PrivacySection.Emergency);
+                    if (fields.Count == 0) { <p>No details returned for this section.</p> }
+                    else
+                    {
+                        @for (var i = 0; i < fields.Count; i += 3)
+                        {
+                            var row = fields.Skip(i).Take(3).ToArray();
+                            <div class="application-emergency"><span class="application-contact-avatar"><DashboardIcon Name="user" /></span><div><strong>@row[0].Value</strong><p>@row[2].Value · @row[1].Value</p><p class="application-missing">Address not provided</p></div></div>
+                        }
+                    }
+                }
+                else { <div class="application-emergency"><span class="application-contact-avatar"><DashboardIcon Name="user" /></span><div>@Masked()<p>@Masked()</p><p class="application-missing">Address not provided</p></div></div> }
+            </section>
+            <section class="dash-card application-section" id="privacy-education" tabindex="-1" aria-labelledby="privacy-education-title">
+                @Heading("Educational Information", "education", "privacy-education-title", PrivacySection.Education)
+                @if (state.IsVisible(PrivacySection.Education))
+                {
+                    var fields = state.Fields(PrivacySection.Education);
+                    if (fields.Count == 0) { <p>No details returned for this section.</p> }
+                    else
+                    {
+                        @for (var i = 0; i < fields.Count; i += 8)
+                        {
+                            var row = fields.Skip(i).Take(8).ToArray();
+                            <dl><div><dt>Educational attainment</dt><dd class="application-edit-value">@row[0].Value · @row[2].Value@EditButton("Edit educational information")</dd></div><div><dt>School / Year graduated</dt><dd>@row[1].Value · <span class="application-missing">Year not provided</span></dd></div><div><dt>Address</dt><dd class="application-missing">Not provided</dd></div></dl>
+                        }
+                    }
+                }
+                else { <dl><div><dt>Educational attainment</dt><dd class="application-edit-value">@Masked()@EditButton("Edit educational information")</dd></div><div><dt>School / Year graduated</dt><dd>@Masked()</dd></div><div><dt>Address</dt><dd class="application-missing">Not provided</dd></div></dl> }
+            </section>
+        </div>
+        <section class="dash-card application-section application-files" aria-labelledby="privacy-files-title">
+            <h2 id="privacy-files-title">Biometrics and Documents</h2>
+            <div id="privacy-biometrics" tabindex="-1"><h3>Biometrics</h3><div class="application-capture"><button class="application-primary" disabled title="@FilesUnavailable"><DashboardIcon Name="capture" />Capture</button><small>@FilesUnavailable</small></div></div>
+            <div id="privacy-documents" tabindex="-1"><div class="application-section-title application-documents-heading"><h3>Documents</h3><button class="application-text-button" disabled title="@FilesUnavailable"><DashboardIcon Name="attachment" />Add Attachment</button></div><p class="application-empty-documents">Documents are not available in this screen.</p></div>
+        </section>
+        <div class="application-side">
+            <section class="dash-card application-section application-actions"><h2>Actions</h2><label class="sr-only" for="privacy-action">Select an action</label><select id="privacy-action" @bind="action" @bind:after="Act"><option value="">Select an action</option><option value="hide">Hide protected details</option><option value="change">Select another applicant</option></select></section>
+            <nav class="dash-card application-section application-links" aria-label="Application quick links"><h2>Quick Links</h2>
+                @foreach (var link in Links) { <button @onclick="() => Scroll(link.Id)"><DashboardIcon Name="@link.Icon" /><span>@link.Title</span></button> }
+            </nav>
+        </div>
+    </div>
+}
+</div>
+@if (state?.DialogOpen == true)
+{
+    <dialog class="application-dialog privacy-dialog" @ref="dialog" aria-labelledby="privacy-otp-title">
+        <div class="application-section-title"><h2 id="privacy-otp-title">Verify protected access</h2><button type="button" @onclick="state.CancelDialog" aria-label="Cancel privacy verification">×</button></div>
+        <p>Request a six-digit code sent to your staff email.</p>
+        <button class="privacy-action" type="button" @onclick="state.RequestCodeAsync" disabled="@state.IsBusy">@(state.IsBusy ? "Please wait…" : "Request code")</button>
+        <form @onsubmit="state.VerifyCodeAsync" @onsubmit:preventDefault>
+            <label for="privacy-otp">Email code</label><input id="privacy-otp" type="password" value="@state.Otp" @oninput="OtpChanged" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="[0-9]{6}" required disabled="@(!state.CanVerify)" />
+            @if (!string.IsNullOrEmpty(state.Message)) { <p class="privacy-message" role="status">@state.Message</p> }
+            <div class="privacy-dialog-actions"><button class="privacy-action" type="submit" disabled="@(!state.CanVerify)">Verify</button><button type="button" @onclick="state.CancelDialog">Cancel</button></div>
+        </form>
+    </dialog>
+}
+else if (state is not null && detailSection is { } section && state.IsVisible(section))
+{
+    <dialog class="application-dialog" @ref="dialog" aria-labelledby="privacy-details-title">
+        <div class="application-section-title"><h2 id="privacy-details-title">@PrivacyPresentation.Sections.Single(s => s.Section == section).Title</h2><button type="button" @onclick="CloseDetails" aria-label="Close details">×</button></div>
+        <dl>@foreach (var field in state.Fields(section)) { <div><dt>@field.Label</dt><dd>@field.Value</dd></div> }</dl>
+    </dialog>
+}
+
+@code {
+    private PrivacyScreenState? state;
+    private bool disposed;
+    private ElementReference dialog;
+    private PrivacySection? detailSection;
+    private string action = "";
+    private const string FilesUnavailable = "Capture is not available in this screen.";
+    private DotNetObjectReference<PrivacyVerification>? reference;
+    private static readonly (string Title, string Id, string Icon)[] Links = [("Account", "account", "user"), ("Bio Details", "bio", "identity"), ("Emergency Contact", "emergency", "phone"), ("Educational Info", "education", "education"), ("Biometrics", "biometrics", "capture"), ("Documents", "documents", "document")];
+    private RenderFragment ApplicantSelector() => @<div>
+        <form class="privacy-selector" @onsubmit="state!.SelectApplicant" @onsubmit:preventDefault>
+            <div><label for="privacy-citizen-id">Citizen ID</label><input id="privacy-citizen-id" value="@state!.CitizenId" @oninput="IdChanged" maxlength="100" autocomplete="off" required /></div>
+            <button class="application-primary" type="submit" disabled="@state.IsBusy">Select applicant</button>
+        </form>
+        <p class="privacy-status" role="status">@(state.Selected ? state.Status : "Select an applicant before revealing a section.")</p>
+        @if (!string.IsNullOrEmpty(state.Message)) { <p class="privacy-message" role="status">@state.Message</p> }
+    </div>;
+    private RenderFragment EditButton(string label) => @<button class="dash-icon-button application-edit" disabled title="@ApplicationPresentation.EditUnavailable" aria-label="@label"><DashboardIcon Name="pencil" /></button>;
+    private RenderFragment Masked() => @<span class="privacy-mask" aria-label="Protected details are hidden"><span class="sr-only">Protected details are hidden.</span></span>;
+    private RenderFragment Eye(PrivacySection section, string title) => @<button class="dash-icon-button" type="button" disabled="@(state?.Selected != true || state.IsBusy)" @onclick="() => state!.ShowOrHideAsync(section)" aria-label="@($"{(state?.IsVisible(section) == true ? "Hide" : "Reveal")} {title}")" aria-expanded="@(state?.IsVisible(section) == true ? "true" : "false")"><DashboardIcon Name="@(state?.IsVisible(section) == true ? "eye-off" : "eye")" /></button>;
+    private RenderFragment Heading(string title, string icon, string id, PrivacySection section) => @<div class="application-section-title"><span class="application-heading-icon"><DashboardIcon Name="@icon" /></span><h2 id="@id">@title</h2><button class="dash-icon-button" disabled="@(state?.IsVisible(section) != true)" @onclick="() => ShowDetails(section)" aria-label="@($"View {title} details")"><DashboardIcon Name="list" /></button>@Eye(section, title)</div>;
+    private string Value(PrivacySection section, string label) => state?.Fields(section).FirstOrDefault(f => f.Label == label)?.Value ?? "Not provided";
+    private RenderFragment ProtectedValue(PrivacySection section, params string[] labels) => @<span>@if (state?.IsVisible(section) == true) { @string.Join(" · ", labels.Select(label => Value(section, label))) } else { @Masked() }</span>;
+    private void ShowDetails(PrivacySection section) { if (state?.IsVisible(section) == true) detailSection = section; }
+    private void CloseDetails() => detailSection = null;
+    private Task Scroll(string id) => JS.InvokeVoidAsync("obsApplication.scrollTo", "privacy-" + id).AsTask();
+    private void Act() { var choice = action; action = ""; detailSection = null; if (choice == "hide") state?.CancelDialog(); else if (choice == "change") state?.SetCitizenId(""); }
+    protected override void OnInitialized()
+    {
+        if (!Workspace.Available) return;
+        state = Workspace.CreateScreen(Session); state.Changed += Changed;
+        reference = DotNetObjectReference.Create(this);
+    }
+    private void Changed() { if (!disposed) _ = InvokeAsync(() => { if (!disposed) { if (detailSection is { } section && state?.IsVisible(section) != true) detailSection = null; StateHasChanged(); } }); }
+    private void IdChanged(ChangeEventArgs args) => state?.SetCitizenId(args.Value?.ToString() ?? "");
+    private void OtpChanged(ChangeEventArgs args) => state?.SetOtp(args.Value?.ToString() ?? "");
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    { if (!disposed && (state?.DialogOpen == true || (detailSection is { } section && state?.IsVisible(section) == true))) await JS.InvokeVoidAsync("obsPrivacy.open", dialog, reference); }
+    [JSInvokable] public void CancelPrivacyDialog() { if (!disposed) { if (state?.DialogOpen == true) state.CancelDialog(); else { CloseDetails(); StateHasChanged(); } } }
+    public void Dispose()
+    {
+        disposed = true; detailSection = null;
+        if (state is not null) { state.Changed -= Changed; state.Dispose(); state = null; }
+        reference?.Dispose(); reference = null;
+    }
+}

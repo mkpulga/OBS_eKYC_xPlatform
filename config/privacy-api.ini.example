@@ -1,0 +1,11 @@
+; Selected Privacy PII OTP & Dashboard collection. Use an approved HTTPS test backend.
+; This is an opt-in example; existing deployment defaults are preserved.
+[ApiSettings]
+baseUrl=https://configure-your-test-backend.invalid
+apiRootPath=/api/v1
+apiContract=Privacy
+tokenHeaderKey=X-Obs-Token
+; Supply this through approved deployment configuration. Do not commit a real value.
+userAgent=
+[Features]
+featureSet=StandAlone

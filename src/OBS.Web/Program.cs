@@ -24,7 +24,11 @@ var backend = builder.Configuration.GetSection("Backend").Get<BackendOptions>() 
 var theme = builder.Configuration.GetSection("Theme").Get<ThemeOptions>() ?? new();
 theme.Validate();
 string? configurationError = null;
-try { _ = backend.GetApiRoot(); }
+try
+{
+    _ = backend.GetApiRoot();
+    if (backend.ApiContract == ApiContract.Privacy) configurationError = PrivacyApiService.ClientUnavailableReason;
+}
 catch (ArgumentException exception) { configurationError = exception.Message; }
 builder.Services.AddSingleton(theme);
 builder.Services.AddSingleton(new DeploymentStatus(configurationError, backend.ApiContract, backend.FeatureSet));
@@ -37,6 +41,7 @@ builder.Services.AddScoped<IAuthenticationGateway>(_ =>
 builder.Services.AddScoped<ICardholderVerification>(_ =>
     configurationError is not null ? new UnavailableCardholderVerification() : new OwnedCardholderVerification(backend));
 builder.Services.AddScoped<SessionController>();
+builder.Services.AddScoped<PrivacyWorkspace>(_ => configurationError is null ? new(backend) : new());
 builder.Services.AddScoped<IApplicationRecords>(_ =>
     configurationError is not null ? new UnavailableApplicationRecords() : new OwnedApplicationRecords(backend));
 var app = builder.Build();

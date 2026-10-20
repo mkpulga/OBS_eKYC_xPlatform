@@ -64,6 +64,12 @@ public sealed class ApplicationRecordsService(ApiTransport api) : IApplicationRe
         var security = new RequestSecurity { Bearer = session.Tokens.Access };
         var result = await api.GetAsync("cardholder/pending/" + Uri.EscapeDataString(number), security, token);
         if (result.HttpStatus == HttpStatusCode.NotFound) return new(ApplicationOutcome.NotFound);
+        // Owner-confirmed selected-server behavior: this specific lookup uses HTTP 401
+        // with business 2004 for no matching pending application. Do not generalize this
+        // exception to other 401 responses, endpoints, or the global staff session.
+        if (api.Contract == ApiContract.Privacy &&
+            result is { Failure: ApiFailure.None, HttpStatus: HttpStatusCode.Unauthorized, BusinessCode: "2004" })
+            return new(ApplicationOutcome.NotFound);
         if (Failure(result) is { } failure) return new(failure);
         try
         {
