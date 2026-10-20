@@ -59,23 +59,39 @@ internal static class ApplicantDetailJson
         var identity = new ApplicantIdentity(ProtectedApplicantJson.Id(person, id), Text(person, "referencenumber"), Text(person, "firstname"),
             Text(person, "middlename"), Text(person, "lastname"), Text(person, "suffix"), Text(person, "displayname"), Text(person, "accounttype"),
             Text(person, "status"), Text(person, "citizenstatus"));
-        var contacts = ProtectedApplicantJson.Rows(result, "contact").EnumerateArray().Select(contact =>
+        var contacts = OptionalRows(result, "contact").EnumerateArray().Select(contact =>
         {
             _ = ProtectedApplicantJson.Id(contact, id);
             return new ApplicantContact(Text(contact, "type"), Text(contact, "value"));
         }).ToArray();
-        var classifications = ProtectedApplicantJson.Rows(result, "account-classification").EnumerateArray().Select(item =>
+        var classifications = OptionalRows(result, "account-classification").EnumerateArray().Select(item =>
         { _ = ProtectedApplicantJson.Id(item, id); return Text(item, "type"); }).ToArray();
-        if (!SourceJson.TryGetProperty(row, "last-module-updated", out var module)) throw new JsonException();
-        _ = ProtectedApplicantJson.Id(module, id);
-        var lastModule = new ApplicantModuleUpdate(Text(module, "module"), Text(module, "timestamp"));
+        var lastModule = new ApplicantModuleUpdate(null, null);
+        if (row.EnumerateObject().Any(p => p.Name.Equals("last-module-updated", StringComparison.OrdinalIgnoreCase)))
+        {
+            if (!SourceJson.TryGetProperty(row, "last-module-updated", out var module)) throw new JsonException();
+            if (module.ValueKind != JsonValueKind.Null)
+            {
+                _ = ProtectedApplicantJson.Id(module, id);
+                lastModule = new(Text(module, "module"), Text(module, "timestamp"));
+            }
+        }
         // Shape checks never convert an unauthorized empty array into authoritative "no data".
-        foreach (var name in new[] { "address", "emergency", "other-info" }) _ = ProtectedApplicantJson.Rows(result, name);
+        foreach (var name in new[] { "address", "emergency", "other-info" }) _ = OptionalRows(result, name);
         return new(identity, contacts, classifications, lastModule, required, effective,
             effective.Contains(PrivacySection.Bio) ? ProtectedApplicantJson.Bio(result, id) : null,
             effective.Contains(PrivacySection.Address) ? ProtectedApplicantJson.Addresses(result, id) : null,
             effective.Contains(PrivacySection.Emergency) ? ProtectedApplicantJson.Emergency(result, id) : null,
             effective.Contains(PrivacySection.Education) ? ProtectedApplicantJson.Education(result, id) : null);
+    }
+    private static JsonElement OptionalRows(ApiResult result, string name)
+    {
+        var row = PrivacyResults.SingleData(result);
+        if (!row.EnumerateObject().Any(p => p.Name.Equals(name, StringComparison.OrdinalIgnoreCase)))
+            return JsonSerializer.SerializeToElement(Array.Empty<object>());
+        if (SourceJson.TryGetProperty(row, name, out var value) && value.ValueKind == JsonValueKind.Null)
+            return JsonSerializer.SerializeToElement(Array.Empty<object>());
+        return ProtectedApplicantJson.Rows(result, name);
     }
     private static string? Text(JsonElement row, string name) => ProtectedApplicantJson.Text(row, name);
     private static bool Boolean(JsonElement row, string name)

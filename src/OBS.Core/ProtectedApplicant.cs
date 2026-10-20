@@ -1,4 +1,3 @@
-using System.Globalization;
 using System.Text.Json;
 
 namespace OBS.Core;
@@ -60,17 +59,18 @@ internal static class ProtectedApplicantJson
     }
     internal static string Id(JsonElement row, string expected)
     {
-        // Observed citizenid is an integer; status applicationId is a canonical string.
-        if (!SourceJson.TryGetProperty(row, "citizenid", out var id) || id.ValueKind != JsonValueKind.Number ||
-            !id.TryGetInt64(out var number) || number < 0) throw new JsonException();
-        var value = number.ToString(CultureInfo.InvariantCulture);
-        if (!string.Equals(value, expected, StringComparison.Ordinal)) throw new JsonException();
+        if (!SourceJson.TryGetProperty(row, "citizenid", out var id)) throw new JsonException();
+        var value = id.ValueKind == JsonValueKind.String ? id.GetString() :
+            id.ValueKind == JsonValueKind.Number && id.GetRawText().All(char.IsAsciiDigit) ? id.GetRawText() : null;
+        if (value is null || !string.Equals(value, expected, StringComparison.Ordinal)) throw new JsonException();
         return value;
     }
     internal static string? Text(JsonElement row, string name)
     {
-        // A missing field differs from a server-declared null. Do not silently invent it.
-        if (!SourceJson.TryGetProperty(row, name, out var value)) throw new JsonException();
+        if (row.ValueKind != JsonValueKind.Object) throw new JsonException();
+        var matches = row.EnumerateObject().Count(p => p.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
+        if (matches == 0) return null;
+        if (matches != 1 || !SourceJson.TryGetProperty(row, name, out var value)) throw new JsonException();
         return value.ValueKind switch { JsonValueKind.String => value.GetString(), JsonValueKind.Null => null, _ => throw new JsonException() };
     }
 }

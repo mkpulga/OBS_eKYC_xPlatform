@@ -49,7 +49,7 @@ public sealed class ApplicantPrivacyController : IDisposable
     // The caller must supply an evidenced canonical citizen ID, not an assumed reference alias.
     public bool SelectApplicant(string citizenId)
     {
-        if (citizenId is null || !ApplicationPresentation.ValidNumber(citizenId)) throw new ArgumentException("Enter a valid applicant identifier.", nameof(citizenId));
+        if (!CitizenId.IsValid(citizenId)) throw new ArgumentException("Enter a Citizen ID.", nameof(citizenId));
         bool selected;
         lock (gate)
         {

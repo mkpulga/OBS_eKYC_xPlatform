@@ -1,6 +1,7 @@
 @using System.Globalization
 @implements IDisposable
 @inject PrivacyWorkspace PrivacyWorkspace
+@inject SessionController Session
 
 <div class="dashboard-shell @(viewApplication || viewPrivacy ? "application-shell" : "") @(dark ? "dashboard-dark" : "") @(collapsed ? "sidebar-collapsed" : "") @(mobileOpen ? "sidebar-mobile-open" : "")">
     <aside class="dashboard-sidebar" aria-label="Main navigation">
@@ -37,11 +38,11 @@
             <form class="dash-search" @onsubmit="Search" @onsubmit:preventDefault>
                 <DashboardIcon Name="search" />
                 <label class="sr-only" for="dashboard-search-type">Search by</label>
-                <select id="dashboard-search-type" @bind="searchType"><option>Application Number</option><option>QR Code</option><option>Cardholder</option><option>Reference No.</option></select>
+                <select id="dashboard-search-type" value="@searchType" @onchange="SearchTypeChanged"><option>Application Number</option><option>QR Code</option><option>Cardholder</option><option>Reference No.</option>@foreach (var source in Enum.GetValues<CitizenSearchSource>()) { @if (CitizenSearchPresentation.Allowed(Session.Current, source)) { <option>@CitizenSearchPresentation.Label(source)</option> } }</select>
                 <label class="sr-only" for="dashboard-search">Search records</label>
-                <input id="dashboard-search" @bind="query" placeholder="Search records" />
+                <input id="dashboard-search" value="@query" @oninput="QueryChanged" placeholder="Search records" />
                 <button class="dash-icon-button" type="button" title="Scan QR code" aria-label="Scan QR code" @onclick="ShowScannerNotice"><DashboardIcon Name="qr" /></button>
-                <button class="dash-icon-button" type="submit" title="Search records" aria-label="Search records"><DashboardIcon Name="filter" /></button>
+                <button class="dash-icon-button" type="submit" title="Search records" aria-label="@(citizenSearch?.IsBusy == true ? "Searching…" : "Search records")" disabled="@(citizenSearch?.IsBusy == true)">@(citizenSearch?.IsBusy == true ? "…" : "")<DashboardIcon Name="filter" /></button>
             </form>
             <div class="dash-toolbar-actions">
                 <button class="dash-icon-button" @onclick="ShowNotifications" aria-label="Notifications"><DashboardIcon Name="bell" /></button>
@@ -58,7 +59,7 @@
             { <PrivacyVerification /> }
             else if (viewApplication)
             {
-                <ViewApplication @key="applicationLoad" Number="@applicationNumber" OnWorkflow="Select" />
+                <ViewApplication @key="applicationLoad" Number="@applicationNumber" CitizenSearch="@(viewCitizen ? citizenSearch : null)" OnSearchFailure="CitizenSearchFailed" OnWorkflow="Select" />
             }
             else if (CardholderVerificationPresentation.IsQueue(selected))
             {
@@ -135,17 +136,19 @@
     private bool dark, collapsed, mobileOpen;
     private string searchType = "Application Number", query = "", applicationNumber = "";
     private bool viewApplication, viewPrivacy;
+    private bool viewCitizen, disposed;
+    private CitizenApplicationSearch? citizenSearch;
     private int applicationLoad;
     private bool CanViewApplications => Modules.Any(entry => entry.Authorities.Contains(CardholderVerificationService.Authority));
     private readonly CancellationTokenSource clockStop = new();
-    protected override void OnInitialized() { if (InitialApplicationNumber is not null && CanViewApplications) OpenApplication(InitialApplicationNumber); _ = UpdateClock(); }
+    protected override void OnInitialized() { citizenSearch = PrivacyWorkspace.CreateCitizenSearch(Session); citizenSearch.Changed += CitizenChanged; Session.Changed += SessionChanged; if (InitialApplicationNumber is not null && CanViewApplications) OpenApplication(InitialApplicationNumber); _ = UpdateClock(); }
     private async Task UpdateClock()
     {
         using var timer = new PeriodicTimer(TimeSpan.FromSeconds(30));
         try { while (await timer.WaitForNextTickAsync(clockStop.Token)) await InvokeAsync(StateHasChanged); }
         catch (OperationCanceledException) { }
     }
-    public void Dispose() { clockStop.Cancel(); clockStop.Dispose(); }
+    public void Dispose() { disposed = true; Session.Changed -= SessionChanged; if (citizenSearch is not null) { citizenSearch.Changed -= CitizenChanged; citizenSearch.Dispose(); } clockStop.Cancel(); clockStop.Dispose(); }
     private string? notice;
     private DateTimeOffset Now => DashboardPresentation.LocalTime;
     private static string Pressed(bool value) => value ? "true" : "false";
@@ -153,11 +156,30 @@
     private string ChartDescription => $"Sample activity, {DashboardSample.Description(period)}. " + string.Join(". ", DashboardSample.Activity(period).Select(item => $"{item.Label}: {item.Completed} completed, {item.InProgress} in progress"));
     private void ToggleTheme() => dark = !dark;
     private void ToggleSidebar() => collapsed = !collapsed;
-    private void ShowOverview() { selected = null; viewApplication = viewPrivacy = false; notice = null; mobileOpen = false; }
-    private void Select(NavigationEntry entry) { if (Modules.Contains(entry)) { selected = entry; viewApplication = viewPrivacy = false; notice = null; mobileOpen = false; } }
-    private void OpenApplication(string number) { if (!CanViewApplications) { notice = ApplicationPresentation.Status(ApplicationOutcome.NotPermitted); return; } applicationNumber = query = number.Trim(); applicationLoad++; selected = null; viewApplication = true; viewPrivacy = false; notice = null; mobileOpen = false; }
-    private void OpenPrivacy() { if (PrivacyWorkspace.Available) { selected = null; viewApplication = false; viewPrivacy = true; notice = null; mobileOpen = false; } }
-    private void Search() { if (searchType == "Application Number" || searchType == "Reference No.") OpenApplication(query); else notice = string.IsNullOrWhiteSpace(query) ? "Enter a value to search." : "This search method is not available yet. Select Application Number."; }
+    private void LeaveCitizen() { viewCitizen = false; citizenSearch?.Leave(); }
+    private void ShowOverview() { LeaveCitizen(); selected = null; viewApplication = viewPrivacy = false; notice = null; mobileOpen = false; }
+    private void Select(NavigationEntry entry) { if (Modules.Contains(entry)) { LeaveCitizen(); selected = entry; viewApplication = viewPrivacy = false; notice = null; mobileOpen = false; } }
+    private void OpenApplication(string number) { if (!CanViewApplications) { notice = ApplicationPresentation.Status(ApplicationOutcome.NotPermitted); return; } LeaveCitizen(); applicationNumber = query = number.Trim(); applicationLoad++; selected = null; viewApplication = true; viewPrivacy = false; notice = null; mobileOpen = false; }
+    private void OpenPrivacy() { if (PrivacyWorkspace.Available) { LeaveCitizen(); selected = null; viewApplication = false; viewPrivacy = true; notice = null; mobileOpen = false; } }
+    private void SearchTypeChanged(ChangeEventArgs args) { searchType = args.Value?.ToString() ?? "Application Number"; citizenSearch?.SetCriteria(searchType, query); }
+    private void QueryChanged(ChangeEventArgs args) { query = args.Value?.ToString() ?? ""; citizenSearch?.SetCriteria(searchType, query); }
+    private async Task Search()
+    {
+        if (citizenSearch?.IsBusy == true) return;
+        if (CitizenSearchPresentation.Source(searchType) is not null)
+        {
+            selected = null; viewApplication = viewPrivacy = viewCitizen = false; notice = null;
+            citizenSearch!.SetCriteria(searchType, query);
+            if (await citizenSearch.SearchAsync() && !disposed && citizenSearch.Snapshot is not null)
+            { viewApplication = viewCitizen = true; applicationLoad++; mobileOpen = false; }
+            else if (!disposed) notice = citizenSearch.Message;
+        }
+        else if (searchType == "Application Number" || searchType == "Reference No.") OpenApplication(query);
+        else notice = string.IsNullOrWhiteSpace(query) ? "Enter a value to search." : "This search method is not available yet. Select Application Number.";
+    }
+    private void CitizenChanged() { if (!disposed) _ = InvokeAsync(() => { if (!disposed) StateHasChanged(); }); }
+    private void SessionChanged() { if (!disposed) _ = InvokeAsync(() => { if (disposed) return; if (CitizenSearchPresentation.Source(searchType) is { } source && !CitizenSearchPresentation.Allowed(Session.Current, source)) searchType = "Application Number"; if (viewCitizen && citizenSearch?.Snapshot is null && citizenSearch?.IsBusy != true) { viewCitizen = viewApplication = false; } StateHasChanged(); }); }
+    private void CitizenSearchFailed() { viewCitizen = viewApplication = false; notice = citizenSearch?.Message; }
     private void ShowScannerNotice() => notice = "QR scanning is not available on this dashboard yet.";
     private void ShowNotifications() => notice = "No notifications to display. This dashboard displays sample data.";
 }

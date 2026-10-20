@@ -10,10 +10,10 @@ public static class PrivacyPresentation
 
     // Only currently visible controller snapshots become display fields. Never log these
     // transient fields or retain them beyond the current render/update of a screen.
-    public static IReadOnlyList<ApplicationField> Fields(ApplicantPrivacyController state, PrivacySection section)
+    public static IReadOnlyList<ApplicationField> Fields(ApplicantPrivacyController state, PrivacySection section, string missing = "Not provided")
     {
         var fields = new List<ApplicationField>();
-        void Add(string label, string? value) => fields.Add(new(label, ApplicationPresentation.Text(value)));
+        void Add(string label, string? value) => fields.Add(new(label, string.IsNullOrWhiteSpace(value) ? missing : value.Trim()));
         switch (section)
         {
             case PrivacySection.Bio when state.Bio is { } bio:
@@ -27,7 +27,7 @@ public static class PrivacyPresentation
                 for (var i = 0; i < addresses.Count; i++)
                 {
                     var row = addresses[i];
-                    var prefix = $"Address {i + 1} · {ApplicationPresentation.Text(row.AddressType)}";
+                    var prefix = $"Address {i + 1} · {(string.IsNullOrWhiteSpace(row.AddressType) ? missing : row.AddressType.Trim())}";
                     Add(prefix + " · Specific address", row.SpecificAddress); Add(prefix + " · Building", row.BuildingName);
                     Add(prefix + " · Address line 1", row.AddressLine1); Add(prefix + " · Address line 2", row.AddressLine2);
                     Add(prefix + " · Barangay", row.Barangay); Add(prefix + " · City", row.City); Add(prefix + " · Province", row.Province);

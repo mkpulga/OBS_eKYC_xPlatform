@@ -44,6 +44,7 @@ public sealed class PrivacyWorkspace : IDisposable
         }
     }
     public PrivacyScreenState CreateScreen(SessionController session) => new(CreateController(session), session);
+    public CitizenApplicationSearch CreateCitizenSearch(SessionController session) => new(api, session, () => CreateScreen(session));
     public void Dispose()
     {
         ApplicantPrivacyController[] active;

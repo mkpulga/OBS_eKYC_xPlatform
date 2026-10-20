@@ -112,7 +112,10 @@ public sealed class PrivacyApiService(ApiTransport api, BackendOptions options, 
         var result = update ? await GetCardholderUpdateAsync(session, citizenId, pii, token)
             : await GetInformationGatheringAsync(session, citizenId, pii, token);
         if (token.IsCancellationRequested) return new(PrivacyReadOutcome.Cancelled);
+        if (result.HttpStatus == System.Net.HttpStatusCode.NotFound) return new(PrivacyReadOutcome.NotFound);
         if (PrivacyResults.Failure(result) is { } failure) return new(failure);
+        if (result.Data is { } root && SourceJson.TryGetProperty(root, "data", out var rows) &&
+            rows.ValueKind == JsonValueKind.Array && rows.GetArrayLength() == 0) return new(PrivacyReadOutcome.NotFound);
         var now = time.GetUtcNow();
         if (verification is not null && verification.ExpiresAt <= now) return new(PrivacyReadOutcome.Expired);
         try { return new(PrivacyReadOutcome.Success, ApplicantDetailJson.Parse(result, citizenId, verification, now)); }
@@ -153,12 +156,9 @@ public sealed class PrivacyApiService(ApiTransport api, BackendOptions options, 
         return !session.Tokens.IsComplete || session.PasswordChangeRequired || (authority is not null && !session.Allows(authority))
             ? new() { Failure = ApiFailure.NotPermitted } : null;
     }
-    private static string Identifier(string value) { ValidateIdentifier(value); return Uri.EscapeDataString(value); }
+    private static string Identifier(string value) => CitizenId.Encode(value);
     private static void ValidateIdentifier(string value)
     {
-        // Reuse the existing client's conservative path identifier policy. Broader API formats
-        // require contract evidence; do not silently coerce a reference into a citizenId.
-        if (value is null || !ApplicationPresentation.ValidNumber(value))
-            throw new ArgumentException("Enter a valid applicant identifier.", nameof(value));
+        if (!CitizenId.IsValid(value)) throw new ArgumentException("Enter a Citizen ID.", nameof(value));
     }
 }

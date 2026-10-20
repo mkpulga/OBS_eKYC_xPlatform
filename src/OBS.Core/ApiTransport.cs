@@ -60,7 +60,10 @@ public sealed class ApiTransport(HttpClient client, BackendOptions options)
         var applicationRoute = segments.Length == 3 && segments[0] == "cardholder" && segments[1] == "pending" && ApplicationPresentation.ValidNumber(segments[2]);
         var documentRoute = segments.Length == 4 && segments[0] == "documents" && segments[1] == "pending" && segments[3] == "ALL" && ApplicationPresentation.ValidNumber(segments[2]);
         if (!GetRoutes.Contains(route) && !applicationRoute && !documentRoute && !IsPrivacyGet(route)) throw new ArgumentException("Route is outside the implemented slices.", nameof(route));
-        using var request = new HttpRequestMessage(HttpMethod.Get, new Uri(root, route));
+        // Encoded opaque IDs, including dot segments, must survive URI normalization.
+        var uri = IsPrivacyGet(route) ? new Uri(root.AbsoluteUri + route,
+            new UriCreationOptions { DangerousDisablePathAndQueryCanonicalization = true }) : new Uri(root, route);
+        using var request = new HttpRequestMessage(HttpMethod.Get, uri);
         return await SendAsync(request, security, cancellationToken);
     }
 
@@ -68,10 +71,10 @@ public sealed class ApiTransport(HttpClient client, BackendOptions options)
     {
         var segments = route.Split('/');
         return route == "dashboard" ||
-            (segments.Length == 4 && segments[0] == "privacy" && segments[1] == "verification" && segments[2] == "status" && ApplicationPresentation.ValidNumber(segments[3])) ||
-            (segments.Length == 4 && segments[0] == "privacy" && segments[1] == "applicants" && ApplicationPresentation.ValidNumber(segments[2]) && segments[3] is "bio" or "address" or "emergency" or "education") ||
+            (segments.Length == 4 && segments[0] == "privacy" && segments[1] == "verification" && segments[2] == "status" && CitizenId.IsEncodedSegment(segments[3])) ||
+            (segments.Length == 4 && segments[0] == "privacy" && segments[1] == "applicants" && CitizenId.IsEncodedSegment(segments[2]) && segments[3] is "bio" or "address" or "emergency" or "education") ||
             (segments.Length == 3 && ((segments[0] == "information" && segments[1] == "gathering") ||
-                (segments[0] == "cardholder" && segments[1] == "update")) && ApplicationPresentation.ValidNumber(segments[2]));
+                (segments[0] == "cardholder" && segments[1] == "update")) && CitizenId.IsEncodedSegment(segments[2]));
     }
 
     private async Task<ApiResult> SendAsync(HttpRequestMessage request, RequestSecurity? security, CancellationToken cancellationToken)

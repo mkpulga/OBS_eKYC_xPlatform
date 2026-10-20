@@ -394,6 +394,7 @@ DashboardApiTests.Register(Add, Check);
 PrivacyResponseTests.Register(Add, Check);
 ApplicantPrivacyControllerTests.Register(Add, Check);
 PrivacyWorkspaceTests.Register(Add, Check);
+CitizenApplicationSearchTests.Register(Add, Check);
 var failed = 0;
 foreach (var test in tests)
 {

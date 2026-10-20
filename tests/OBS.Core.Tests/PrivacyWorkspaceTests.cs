@@ -65,7 +65,7 @@ static class PrivacyWorkspaceTests
             check(screen.Otp == "" && !screen.DialogOpen && screen.Stage == PrivacyStage.Locked, "Cancelled OTP retained");
             await OpenBio(screen); screen.SetCitizenId("102");
             check(!screen.Selected && !rig.Privacy.HasApplicant && screen.Fields(PrivacySection.Bio).Count == 0 && screen.Otp == "", "Edited applicant retained old access");
-            screen.SetCitizenId("../bad"); screen.SelectApplicant(); check(!screen.Selected && screen.Message == "Enter a valid citizen ID.", "Unsafe identifier accepted");
+            screen.SetCitizenId(" "); screen.SelectApplicant(); check(!screen.Selected && screen.Message == "Enter a valid citizen ID.", "Empty identifier accepted");
         });
         add("Screen expiry and pause logout password change clear rendered state", async () =>
         {

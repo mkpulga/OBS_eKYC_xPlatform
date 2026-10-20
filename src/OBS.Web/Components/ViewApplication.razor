@@ -6,8 +6,16 @@
 @code {
     [Parameter] public string Number { get; set; } = "";
     [Parameter] public EventCallback<NavigationEntry> OnWorkflow { get; set; }
-    private ApplicationReply? reply;
-    private bool loading, disposed, showDialog;
+    [Parameter] public CitizenApplicationSearch? CitizenSearch { get; set; }
+    [Parameter] public EventCallback OnSearchFailure { get; set; }
+    private CitizenApplicationSearch? observedSearch;
+    private DotNetObjectReference<ViewApplication>? privacyReference;
+    private PrivacySection? dialogSection;
+    private ApplicationReply? applicationReply;
+    private ApplicationReply? reply { get => CitizenSearch is null ? applicationReply : CitizenApplicationPresentation.Record(CitizenSearch) is { } record ? new(ApplicationOutcome.Success, record, []) : null; set => applicationReply = value; }
+    private bool fetching, disposed, showDialog;
+    private bool loading => fetching || CitizenSearch?.IsBusy == true;
+    private PrivacyScreenState? Privacy => CitizenSearch?.Privacy;
     private string? loadedNumber, dialogTitle, previewUrl, previewMime, previewName, documentMessage;
     private string action = "";
     private IReadOnlyList<ApplicationField> dialogFields = [];
@@ -19,33 +27,54 @@
     private static readonly (string Title, string Id, string Icon)[] Links = [("Account", "account", "user"), ("Bio Details", "bio", "identity"), ("Emergency Contact", "emergency", "phone"), ("Educational Info", "education", "education"), ("Biometrics", "biometrics", "capture"), ("Documents", "documents", "document")];
     protected override async Task OnParametersSetAsync()
     {
+        if (CitizenSearch is not null)
+        {
+            privacyReference ??= DotNetObjectReference.Create(this);
+            if (observedSearch != CitizenSearch) { if (observedSearch is not null) observedSearch.Changed -= CitizenChanged; observedSearch = CitizenSearch; observedSearch.Changed += CitizenChanged; }
+            return;
+        }
         if (loadedNumber == Number) return;
         loadedNumber = Number;
         if (!string.IsNullOrWhiteSpace(Number)) await LoadAsync();
     }
     private async Task LoadAsync()
     {
+        if (CitizenSearch is not null)
+        {
+            await CloseDialog();
+            if (!await CitizenSearch.RefreshAsync() && !disposed && !CitizenSearch.IsBusy && CitizenSearch.Message.Length > 0) await OnSearchFailure.InvokeAsync();
+            return;
+        }
         if (disposed || Session.Current is not { } staff || !Session.ProtectedWorkAllowed) return;
         load?.Cancel();
         var current = load = new CancellationTokenSource();
-        reply = null; loading = true;
+        reply = null; fetching = true;
         await CloseDialog();
         try
         {
             var result = await Applications.FindAsync(staff, Number, current.Token);
             if (!disposed && !current.IsCancellationRequested && Session.Current?.Email == staff.Email && Session.ProtectedWorkAllowed) reply = result;
         }
-        finally { if (load == current) { loading = false; load = null; } current.Dispose(); }
+        finally { if (load == current) { fetching = false; load = null; } current.Dispose(); }
     }
     private RenderFragment EditButton(string label) => @<button class="dash-icon-button application-edit" disabled title="@ApplicationPresentation.EditUnavailable" aria-label="@label"><DashboardIcon Name="pencil" /></button>;
-    private RenderFragment SectionHeading(string title, string icon, string id, Action view) => @<div class="application-section-title"><span class="application-heading-icon"><DashboardIcon Name="@icon" /></span><h2 id="@id">@title</h2><button class="dash-icon-button" @onclick="view" aria-label="@($"View {title}")"><DashboardIcon Name="eye" /></button></div>;
+    private RenderFragment SectionHeading(string title, string icon, string id, Action view, PrivacySection section) => @<div class="application-section-title"><span class="application-heading-icon"><DashboardIcon Name="@icon" /></span><h2 id="@id">@title</h2>@if (CitizenSearch is null) { <button class="dash-icon-button" @onclick="view" aria-label="@($"View {title}")"><DashboardIcon Name="eye" /></button> } else { <button class="dash-icon-button" disabled="@(Privacy?.IsVisible(section) != true)" @onclick="() => ShowProtectedDetails(title, section)" aria-label="@($"View {title}")"><DashboardIcon Name="list" /></button>@Eye(section, title) }</div>;
+    private string Text(string? value) => CitizenSearch is null ? ApplicationPresentation.Text(value) : CitizenSearchPresentation.Text(value);
+    private RenderFragment Masked() => @<span class="privacy-mask" aria-label="Protected details are hidden"><span class="sr-only">Protected details are hidden.</span></span>;
+    private RenderFragment Protected(PrivacySection section, string value) => @<span>@if (CitizenSearch is null || Privacy?.IsVisible(section) == true) { @Text(value) } else { @Masked() }</span>;
+    private RenderFragment Eye(PrivacySection section, string title) => @<button class="dash-icon-button" type="button" disabled="@(Privacy is null || Privacy.IsBusy)" @onclick="() => TogglePrivacy(section)" aria-label="@($"{(Privacy?.IsVisible(section) == true ? "Hide" : "Reveal")} {title}")" aria-expanded="@(Privacy?.IsVisible(section) == true ? "true" : "false")"><DashboardIcon Name="@(Privacy?.IsVisible(section) == true ? "eye-off" : "eye")" /></button>;
+    private Task TogglePrivacy(PrivacySection section) => Privacy?.ShowOrHideAsync(section) ?? Task.CompletedTask;
+    private void ShowProtectedDetails(string title, PrivacySection section) { if (Privacy?.IsVisible(section) == true) { ShowDetails(title, []); dialogSection = section; } }
+    private void CitizenChanged() { if (!disposed) _ = InvokeAsync(async () => { if (disposed) return; if (dialogSection is { } section && Privacy?.IsVisible(section) != true) await CloseDialog(); StateHasChanged(); }); }
     private static IReadOnlyList<ApplicationField> Bio(ApplicationRecord r) => new ApplicationField[] { new("Birth full name", r.Name), new("Birthday", r.Birthday), new("Gender", r.Gender), new("Birthplace", r.Birthplace), new("Blood type", r.BloodType) }.Concat(r.BioFields).ToArray();
     private static IReadOnlyList<ApplicationField> Emergency(ApplicationRecord r) => [new("Name", r.EmergencyName), new("Relationship", r.EmergencyRelationship), new("Phone", r.EmergencyPhone), new("Address", r.EmergencyAddress)];
     private static IReadOnlyList<ApplicationField> Education(ApplicationRecord r) => [new("Educational attainment", r.Attainment), new("Course", r.Course), new("School", r.School)];
-    private void ShowDetails(string title, IReadOnlyList<ApplicationField> fields) { dialogTitle = title; dialogFields = fields; showDialog = true; }
+    private void ShowDetails(string title, IReadOnlyList<ApplicationField> fields) { dialogSection = null; dialogTitle = title; dialogFields = fields; showDialog = true; }
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (showDialog) { showDialog = false; await JS.InvokeVoidAsync("obsApplication.showDialog", dialog); }
+        if (Privacy?.DialogOpen == true || (dialogTitle is not null && dialogSection is not null))
+        { showDialog = false; await JS.InvokeVoidAsync("obsPrivacy.open", dialog, privacyReference); }
+        else if (showDialog) { showDialog = false; await JS.InvokeVoidAsync("obsApplication.showDialog", dialog); }
     }
     private async Task OpenDocument(ApplicationDocument file)
     {
@@ -62,9 +91,16 @@
     private async Task CloseDialog()
     {
         if (previewUrl is not null) await JS.InvokeVoidAsync("obsApplication.releaseUrl", previewUrl);
-        dialogTitle = previewUrl = previewMime = previewName = documentMessage = null;
+        dialogTitle = previewUrl = previewMime = previewName = documentMessage = null; dialogSection = null; dialogFields = [];
     }
-    private Task DialogKey(KeyboardEventArgs e) => e.Key == "Escape" ? CloseDialog() : Task.CompletedTask;
+    private Task DialogKey(KeyboardEventArgs e) { if (e.Key != "Escape") return Task.CompletedTask; if (Privacy?.DialogOpen == true) Privacy.CancelDialog(); return CloseDialog(); }
+    private void OtpChanged(ChangeEventArgs args) => Privacy?.SetOtp(args.Value?.ToString() ?? "");
+    [JSInvokable] public async Task CancelPrivacyDialog()
+    {
+        if (disposed) return;
+        if (Privacy?.DialogOpen == true) Privacy.CancelDialog();
+        await CloseDialog(); StateHasChanged();
+    }
     private async Task Scroll(string id) => await JS.InvokeVoidAsync("obsApplication.scrollTo", "application-" + id);
     private async Task Act()
     {
@@ -76,6 +112,9 @@
     public async ValueTask DisposeAsync()
     {
         disposed = true; load?.Cancel(); reply = null;
+        if (observedSearch is not null) observedSearch.Changed -= CitizenChanged;
+        dialogFields = [];
+        privacyReference?.Dispose(); privacyReference = null;
         if (previewUrl is not null) { try { await JS.InvokeVoidAsync("obsApplication.releaseUrl", previewUrl); } catch (JSDisconnectedException) { } }
     }
 }
@@ -94,50 +133,52 @@
 else
 {
     <h1 class="sr-only">View Application @record.Number</h1>
+    @if (CitizenSearch is not null && !string.IsNullOrEmpty(Privacy?.Message)) { <p class="privacy-message" role="status">@Privacy.Message</p> }
     <div class="application-columns">
         <section class="dash-card application-profile" id="application-account" tabindex="-1" aria-label="Applicant account">
             <div class="application-cover"></div>
             <div class="application-photo">
                 @if (Photo is { } photo) { <img src="@photo" alt="Applicant profile" /> }
-                else { <DashboardIcon Name="user" /> }
+                else { <DashboardIcon Name="user" />@if (CitizenSearch is not null) { <span class="sr-only">Not available.</span> } }
                 <button class="application-camera" disabled title="@ApplicationPresentation.EditUnavailable" aria-label="Change applicant photo"><DashboardIcon Name="camera" /></button>
             </div>
-            <div class="application-name"><h2>@ApplicationPresentation.Text(record.Name)</h2>@EditButton("Edit applicant name")</div>
-            <div class="application-contact"><DashboardIcon Name="hash" /><button @onclick='() => ShowDetails("Account", record.AccountFields)'>Application Number: @record.Number</button></div>
-            <div class="application-contact"><DashboardIcon Name="mail" /><span>Email: @ApplicationPresentation.Text(record.Email)</span></div>
-            <div class="application-contact"><DashboardIcon Name="phone" /><span>Phone: @ApplicationPresentation.Text(record.Phone)</span></div>
+            <div class="application-name"><h2>@Text(record.Name)</h2>@EditButton("Edit applicant name")</div>
+            @if (CitizenSearch?.Source is { } source) { <div class="application-contact"><DashboardIcon Name="search" /><span>@CitizenSearchPresentation.Label(source) · Citizen ID: @CitizenSearch.CitizenId</span></div><p class="application-missing">Photo: Not available.</p> }
+            <div class="application-contact"><DashboardIcon Name="hash" /><button @onclick='() => ShowDetails("Account", record.AccountFields)'>Application Number: @(CitizenSearch is null ? record.Number : Text(record.Number))</button></div>
+            <div class="application-contact"><DashboardIcon Name="mail" /><span>Email: @Text(record.Email)</span></div>
+            <div class="application-contact"><DashboardIcon Name="phone" /><span>Phone: @Text(record.Phone)</span></div>
             <div class="application-badges">
-                <div><small>Account</small><strong>@ApplicationPresentation.Text(record.Status)</strong></div>
-                <div><small>Card</small><strong>Not provided</strong></div>
+                <div><small>Account</small><strong>@Text(record.Status)</strong></div>
+                <div><small>Card</small><strong>@(CitizenSearch is null ? "Not provided" : CitizenSearchPresentation.Missing)</strong></div>
             </div>
-            <div class="application-address"><div class="application-section-title"><h3>Address</h3>@EditButton("Edit address")</div><p>@ApplicationPresentation.Text(record.Address)</p></div>
+            <div class="application-address"><div class="application-section-title"><h3>Address</h3>@EditButton("Edit address")@if (CitizenSearch is not null) { @Eye(PrivacySection.Address, "Address") }</div><p>@Protected(PrivacySection.Address, record.Address)</p></div>
             <div class="application-map">
                 <span class="map-park one"></span><span class="map-park two"></span><span class="map-road one"></span><span class="map-road two"></span><span class="map-road three"></span><span class="map-road four"></span>
                 @if (!string.IsNullOrWhiteSpace(record.Address))
                 { <a href="@ApplicationPresentation.MapUrl(record.Address)" target="_blank" rel="noopener noreferrer" aria-label="View applicant address in Google Maps"><DashboardIcon Name="pin" />View Map</a> }
-                else { <span class="application-map-empty">Address not provided</span> }
+                else { <span class="application-map-empty">@if (CitizenSearch is not null) { @Protected(PrivacySection.Address, "") } else { <span>Address not provided</span> }</span> }
             </div>
         </section>
         <div class="application-personal">
             <section class="dash-card application-section" id="application-bio" tabindex="-1" aria-labelledby="application-bio-title">
-                @SectionHeading("Bio Details", "identity", "application-bio-title", () => ShowDetails("Bio Details", Bio(record)))
+                @SectionHeading("Bio Details", "identity", "application-bio-title", () => ShowDetails("Bio Details", Bio(record)), PrivacySection.Bio)
                 <dl>
-                    <div><dt>Birth full name</dt><dd class="application-edit-value">@ApplicationPresentation.Text(record.Name)@EditButton("Edit bio details")</dd></div>
-                    <div><dt>Birthday / Age / Gender</dt><dd>@ApplicationPresentation.Birthday(record.Birthday, DateOnly.FromDateTime(DashboardPresentation.LocalTime.DateTime)) · @ApplicationPresentation.Text(record.Gender)</dd></div>
-                    <div><dt>Birthplace</dt><dd>@ApplicationPresentation.Text(record.Birthplace)</dd></div>
-                    <div><dt>Blood type</dt><dd>@ApplicationPresentation.Text(record.BloodType)</dd></div>
+                    <div><dt>Birth full name</dt><dd class="application-edit-value">@Protected(PrivacySection.Bio, CitizenSearch is null ? record.Name : Privacy?.Fields(PrivacySection.Bio, CitizenSearchPresentation.Missing).FirstOrDefault(f => f.Label == "Full name")?.Value ?? "")@EditButton("Edit bio details")</dd></div>
+                    <div><dt>Birthday / Age / Gender</dt><dd>@Protected(PrivacySection.Bio, CitizenSearch is null ? ApplicationPresentation.Birthday(record.Birthday, DateOnly.FromDateTime(DashboardPresentation.LocalTime.DateTime)) + " · " + ApplicationPresentation.Text(record.Gender) : Text(record.Birthday) + " · " + Text(record.Gender))</dd></div>
+                    <div><dt>Birthplace</dt><dd>@Protected(PrivacySection.Bio, record.Birthplace)</dd></div>
+                    <div><dt>Blood type</dt><dd>@Protected(PrivacySection.Bio, record.BloodType)</dd></div>
                 </dl>
             </section>
             <section class="dash-card application-section" id="application-emergency" tabindex="-1" aria-labelledby="application-emergency-title">
-                @SectionHeading("Emergency Contact Information", "phone", "application-emergency-title", () => ShowDetails("Emergency Contact Information", Emergency(record)))
-                <div class="application-emergency"><span class="application-contact-avatar"><DashboardIcon Name="user" /></span><div><strong>@ApplicationPresentation.Text(record.EmergencyName)</strong><p>@ApplicationPresentation.Join(" · ", ApplicationPresentation.Text(record.EmergencyPhone), record.EmergencyRelationship)</p><p>@ApplicationPresentation.Text(record.EmergencyAddress)</p></div></div>
+                @SectionHeading("Emergency Contact Information", "phone", "application-emergency-title", () => ShowDetails("Emergency Contact Information", Emergency(record)), PrivacySection.Emergency)
+                <div class="application-emergency"><span class="application-contact-avatar"><DashboardIcon Name="user" /></span><div><strong>@Protected(PrivacySection.Emergency, record.EmergencyName)</strong><p>@Protected(PrivacySection.Emergency, ApplicationPresentation.Join(" · ", Text(record.EmergencyPhone), record.EmergencyRelationship))</p><p>@Protected(PrivacySection.Emergency, record.EmergencyAddress)</p></div></div>
             </section>
             <section class="dash-card application-section" id="application-education" tabindex="-1" aria-labelledby="application-education-title">
-                @SectionHeading("Educational Information", "education", "application-education-title", () => ShowDetails("Educational Information", Education(record)))
+                @SectionHeading("Educational Information", "education", "application-education-title", () => ShowDetails("Educational Information", Education(record)), PrivacySection.Education)
                 <dl>
-                    <div><dt>Educational attainment</dt><dd class="application-edit-value">@ApplicationPresentation.Join(" · ", ApplicationPresentation.Text(record.Attainment), record.Course)@EditButton("Edit educational information")</dd></div>
-                    <div><dt>School / Year graduated</dt><dd>@ApplicationPresentation.Text(record.School) · <span class="application-missing">Year not provided</span></dd></div>
-                    <div><dt>Address</dt><dd class="application-missing">Not provided</dd></div>
+                    <div><dt>Educational attainment</dt><dd class="application-edit-value">@Protected(PrivacySection.Education, ApplicationPresentation.Join(" · ", Text(record.Attainment), record.Course))@EditButton("Edit educational information")</dd></div>
+                    <div><dt>School / Year graduated</dt><dd>@Protected(PrivacySection.Education, Text(record.School) + " · " + (CitizenSearch is null ? "Year not provided" : CitizenSearchPresentation.Missing))</dd></div>
+                    <div><dt>Address</dt><dd class="application-missing">@Protected(PrivacySection.Education, CitizenSearch is null ? "Not provided" : "")</dd></div>
                 </dl>
             </section>
         </div>
@@ -149,7 +190,7 @@ else
             <div id="application-documents" tabindex="-1">
                 <div class="application-section-title application-documents-heading"><h3>Documents</h3><button class="application-text-button" disabled title="@ApplicationPresentation.AttachmentUnavailable"><DashboardIcon Name="attachment" />Add Attachment</button></div>
                 @if (reply.DocumentError is { } error) { <p role="status">@error <button class="application-text-button" @onclick="LoadAsync">Retry</button></p> }
-                else if (reply.Documents is not { Count: > 0 }) { <p class="application-empty-documents">No documents attached to this application.</p> }
+                else if (reply.Documents is not { Count: > 0 }) { <p class="application-empty-documents">@(CitizenSearch is null ? "No documents attached to this application." : CitizenSearchPresentation.Missing)</p> }
                 else
                 {
                     <ul class="application-document-list">
@@ -171,7 +212,19 @@ else
     </div>
 }
 </div>
-@if (dialogTitle is not null)
+@if (Privacy?.DialogOpen == true)
+{
+    <dialog class="application-dialog privacy-dialog" @ref="dialog" @onkeydown="DialogKey" aria-labelledby="application-otp-title">
+        <div class="application-section-title"><h2 id="application-otp-title">Verify protected access</h2><button type="button" @onclick="Privacy.CancelDialog" aria-label="Cancel privacy verification">×</button></div>
+        <p>Request a six-digit code sent to your staff email.</p>
+        <button type="button" @onclick="Privacy.RequestCodeAsync" disabled="@Privacy.IsBusy">@(Privacy.IsBusy ? "Please wait…" : "Request code")</button>
+        <form @onsubmit="Privacy.VerifyCodeAsync" @onsubmit:preventDefault>
+            <label for="application-otp">Email code</label><input id="application-otp" type="password" value="@Privacy.Otp" @oninput="OtpChanged" inputmode="numeric" autocomplete="one-time-code" maxlength="6" disabled="@(!Privacy.CanVerify)" />
+            <p role="status">@Privacy.Message</p><button type="submit" disabled="@(!Privacy.CanVerify)">Verify</button><button type="button" @onclick="Privacy.CancelDialog">Cancel</button>
+        </form>
+    </dialog>
+}
+else if (dialogTitle is not null)
 {
     <dialog class="application-dialog" @ref="dialog" @onkeydown="DialogKey">
         <div class="application-section-title"><h2>@dialogTitle</h2><button class="dash-icon-button" @onclick="CloseDialog" aria-label="Close details">×</button></div>
@@ -182,6 +235,6 @@ else
             <a class="application-text-button" href="@previewUrl" download="@previewName">Download document</a>
         }
         else if (documentMessage is not null) { <p role="status">@documentMessage</p> }
-        else { <dl>@foreach (var field in dialogFields) { <div><dt>@field.Label</dt><dd>@ApplicationPresentation.Text(field.Value)</dd></div> }</dl> }
+        else { <dl>@foreach (var field in dialogSection is { } section ? Privacy?.Fields(section, CitizenSearchPresentation.Missing) ?? [] : dialogFields) { <div><dt>@field.Label</dt><dd>@Text(field.Value)</dd></div> }</dl> }
     </dialog>
 }

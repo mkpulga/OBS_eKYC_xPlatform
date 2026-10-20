@@ -20,7 +20,7 @@ static class ApplicantPrivacyControllerTests
             check(!rig.Privacy.SelectApplicant("101"), "Accepted signed-out staff");
             await rig.Privacy.RequestCodeAsync();
             check(rig.Calls.Count == 0 && rig.Privacy.Bio is null, "Signed-out request dispatched");
-            try { rig.Privacy.SelectApplicant("../101"); throw new InvalidOperationException("Unsafe identifier accepted"); }
+            try { rig.Privacy.SelectApplicant(" "); throw new InvalidOperationException("Empty identifier accepted"); }
             catch (ArgumentException) { }
         });
         add("Privacy controller prevents duplicate OTP actions and validates digits without a guessed cooldown", async () =>

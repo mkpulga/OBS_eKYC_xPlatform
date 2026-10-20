@@ -1,0 +1,8 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup><TargetFramework>net9.0</TargetFramework><OutputType>Exe</OutputType></PropertyGroup>
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <ProjectReference Include="../../src/OBS.Web/OBS.Web.csproj" />
+    <Compile Include="../OBS.Core.Tests/PrivacyResponseTests.cs" Link="PrivacyResponseFixtures.cs" />
+  </ItemGroup>
+</Project>

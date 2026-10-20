@@ -22,7 +22,7 @@ public sealed class PrivacyScreenState : IDisposable
     public bool CanVerify => DialogOpen && !IsBusy && Stage == PrivacyStage.CodeRequested;
     public bool IsVisible(PrivacySection section) => Selected && flow.IsVisible(section);
     public string Status => Stage == PrivacyStage.Verified ? "Privacy verification complete." : "Protected details are hidden.";
-    public IReadOnlyList<ApplicationField> Fields(PrivacySection section) => Selected ? PrivacyPresentation.Fields(flow, section) : [];
+    public IReadOnlyList<ApplicationField> Fields(PrivacySection section, string missing = "Not provided") => Selected ? PrivacyPresentation.Fields(flow, section, missing) : [];
 
     public PrivacyScreenState(ApplicantPrivacyController flow, SessionController session)
     {

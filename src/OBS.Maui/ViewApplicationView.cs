@@ -17,12 +17,56 @@ public sealed class ViewApplicationView : ContentView
     private CancellationTokenSource? load;
     private string number = "";
     private ApplicationReply? reply;
+    private CitizenApplicationSearch? citizen;
+    private ApplicationPrivacyDialog? privacyDialog;
+    private Action<View?>? showPrivacyDialog;
+    public event Action? CitizenSearchFailed;
     public event Action<NavigationEntry>? WorkflowRequested;
 #if WINDOWS
     public event Action? BiometricCaptureRequested;
 #endif
     public ViewApplicationView() { SizeChanged += (_, _) => ArrangeColumns(); ShowState("Search by application number to view an applicant’s complete record."); }
     public void Configure(SessionController controller, IApplicationRecords service) { session = controller; records = service; }
+    public void ShowCitizen(CitizenApplicationSearch search, Action<View?> showDialog)
+    {
+        Clear(); citizen = search; showPrivacyDialog = showDialog;
+        citizen.Changed += CitizenChanged; RenderCitizen();
+    }
+    private void CitizenChanged()
+    {
+        var observed = citizen;
+        MainThread.BeginInvokeOnMainThread(() => { if (observed is not null && citizen == observed) RenderCitizen(); });
+    }
+    private void RenderCitizen()
+    {
+        if (citizen is null) return;
+        if (privacyDialog?.State != citizen.Privacy)
+        {
+            privacyDialog?.Dispose(); privacyDialog = null;
+            if (citizen.Privacy is { } state && showPrivacyDialog is not null) privacyDialog = new(state, showPrivacyDialog, this);
+        }
+        Erase(Content); groupUpdates.Clear();
+        if (CitizenApplicationPresentation.Record(citizen) is { } record)
+        { reply = new(ApplicationOutcome.Success, record, []); Render(record); }
+        else { reply = null; ShowState(citizen.IsBusy ? "Loading application…" : citizen.Message, citizen.IsBusy); }
+    }
+    private async Task RefreshCitizen()
+    {
+        var current = citizen;
+        if (current is null) return;
+        if (!await current.RefreshAsync() && citizen == current && !current.IsBusy && current.Message.Length > 0) CitizenSearchFailed?.Invoke();
+    }
+    public bool CancelPrivacyDialog() => privacyDialog?.Cancel() == true;
+    private bool Shown(ApplicationGroup group) => citizen is not null && CitizenApplicationPresentation.Section(group) is { } section
+        ? citizen.Privacy?.IsVisible(section) == true : reveal.IsVisible(group);
+    private string DisplayText(string? value) => citizen is null ? ApplicationPresentation.Text(value) : CitizenSearchPresentation.Text(value);
+    private static void Erase(View? view)
+    {
+        if (view is Label label) label.Text = "";
+        else if (view is Layout layout) foreach (var child in layout.Children.OfType<View>()) Erase(child);
+        else if (view is Border { Content: View body }) Erase(body);
+        else if (view is ContentView { Content: View content }) Erase(content);
+    }
 
     public async Task LoadAsync(string applicationNumber)
     {
@@ -44,6 +88,9 @@ public sealed class ViewApplicationView : ContentView
     }
     public void Clear()
     {
+        if (citizen is not null) citizen.Changed -= CitizenChanged;
+        citizen = null; privacyDialog?.Dispose(); privacyDialog = null; showPrivacyDialog = null;
+        Erase(Content);
         ResetReveal(); groupUpdates.Clear();
         load?.Cancel(); load = null; reply = null; sections.Clear(); columns.Clear();
         foreach (var path in previewFiles) { try { File.Delete(path); } catch (IOException) { } }
@@ -71,9 +118,9 @@ public sealed class ViewApplicationView : ContentView
         button.Clicked += (_, _) => action?.Invoke(); grid.Add(button); var glyph = Icon(icon); grid.Add(glyph);
         if (group is { } g) Watch(g, () =>
         {
-            var shown = reveal.IsVisible(g);
+            var shown = Shown(g);
             var description = toggle ? (shown ? "Hide " : "Show ") + label : "View " + label;
-            button.IsEnabled = toggle || reveal.DetailsAllowed(g);
+            button.IsEnabled = (toggle || shown) && (citizen is null || CitizenApplicationPresentation.Section(g) is null || citizen.Privacy?.IsBusy == false);
             glyph.Kind = toggle ? (shown ? "eye-off" : "eye") : icon;
             SemanticProperties.SetDescription(button, description);
             ToolTipProperties.SetText(button, !toggle && !shown ? "Show " + label + " first" : description);
@@ -92,6 +139,8 @@ public sealed class ViewApplicationView : ContentView
     }
     private void Toggle(ApplicationGroup group, string title)
     {
+        if (citizen is not null && CitizenApplicationPresentation.Section(group) is { } section)
+        { if (citizen.Privacy is { } state) _ = state.ShowOrHideAsync(section); return; }
         reveal.Toggle(group);
         foreach (var update in groupUpdates[group]) update();
         SemanticScreenReader.Default.Announce(title + (reveal.IsVisible(group) ? " shown" : " hidden"));
@@ -106,8 +155,8 @@ public sealed class ViewApplicationView : ContentView
         var valueArea = new Grid(); valueArea.Add(label); valueArea.Add(blur);
         Watch(group, () =>
         {
-            var shown = reveal.IsVisible(group);
-            label.Text = reveal.Display(group, value);
+            var shown = Shown(group);
+            label.Text = shown ? DisplayText(value) : "";
             label.IsVisible = shown; blur.IsVisible = !shown;
             label.SetDynamicResource(Label.TextColorProperty, !shown || muted ? "DashMuted" : "DashText");
             SemanticProperties.SetDescription(label, shown ? null : "Hidden");
@@ -174,15 +223,15 @@ public sealed class ViewApplicationView : ContentView
     }
     private void Render(ApplicationRecord r)
     {
-        ResetReveal(); groupUpdates.Clear();
+        if (citizen is null) ResetReveal(); groupUpdates.Clear();
         sections.Clear(); columns.Clear();
         var profile = Profile(r);
         var personal = new VerticalStackLayout { Spacing = 12 };
         var bio = new VerticalStackLayout { Spacing = 12 };
         var bioFields = new ApplicationField[] { new("Birth full name", r.Name), new("Birthday", r.Birthday), new("Gender", r.Gender), new("Birthplace", r.Birthplace), new("Blood type", r.BloodType) }.Concat(r.BioFields).ToArray();
         bio.Add(Heading("Bio Details", "identity", ApplicationGroup.Bio, () => Details(ApplicationGroup.Bio, "Bio Details", bioFields)));
-        bio.Add(Field(ApplicationGroup.Bio, "Birth full name", r.Name, true));
-        bio.Add(Field(ApplicationGroup.Bio, "Birthday / Age / Gender", ApplicationPresentation.Join(" · ", ApplicationPresentation.Birthday(r.Birthday, DateOnly.FromDateTime(DashboardPresentation.LocalTime.DateTime)), ApplicationPresentation.Text(r.Gender))));
+        bio.Add(Field(ApplicationGroup.Bio, "Birth full name", citizen is null ? r.Name : citizen.Privacy?.Fields(PrivacySection.Bio, CitizenSearchPresentation.Missing).FirstOrDefault(f => f.Label == "Full name")?.Value ?? "", true));
+        bio.Add(Field(ApplicationGroup.Bio, "Birthday / Age / Gender", ApplicationPresentation.Join(" · ", citizen is null ? ApplicationPresentation.Birthday(r.Birthday, DateOnly.FromDateTime(DashboardPresentation.LocalTime.DateTime)) : DisplayText(r.Birthday), DisplayText(r.Gender))));
         bio.Add(Field(ApplicationGroup.Bio, "Birthplace", r.Birthplace)); bio.Add(Field(ApplicationGroup.Bio, "Blood type", r.BloodType));
         sections["bio"] = Card(bio); personal.Add(sections["bio"]);
         var emergency = new VerticalStackLayout { Spacing = 14 };
@@ -190,21 +239,22 @@ public sealed class ViewApplicationView : ContentView
         var person = new Grid { ColumnDefinitions = [new(54), new(GridLength.Star)], ColumnSpacing = 14 };
         var avatar = new Border { Content = Icon("user", 29), HeightRequest = 68, StrokeThickness = 0, StrokeShape = new RoundRectangle { CornerRadius = 12 } }; avatar.SetDynamicResource(BackgroundColorProperty, "DashBackground"); person.Add(avatar);
         var contact = new VerticalStackLayout { Spacing = 5, VerticalOptions = LayoutOptions.Center };
-        contact.Add(PrivateText(ApplicationGroup.Emergency, r.EmergencyName, 13, true)); contact.Add(PrivateText(ApplicationGroup.Emergency, ApplicationPresentation.Join(" · ", ApplicationPresentation.Text(r.EmergencyPhone), r.EmergencyRelationship), 11)); contact.Add(PrivateText(ApplicationGroup.Emergency, r.EmergencyAddress, 11, muted: true)); person.Add(contact, 1);
+        contact.Add(PrivateText(ApplicationGroup.Emergency, r.EmergencyName, 13, true)); contact.Add(PrivateText(ApplicationGroup.Emergency, ApplicationPresentation.Join(" · ", DisplayText(r.EmergencyPhone), r.EmergencyRelationship), 11)); contact.Add(PrivateText(ApplicationGroup.Emergency, r.EmergencyAddress, 11, muted: true)); person.Add(contact, 1);
         var contactCard = Card(person, 14); contactCard.BackgroundColor = Color.FromArgb("#28485E98"); emergency.Add(contactCard);
         sections["emergency"] = Card(emergency); personal.Add(sections["emergency"]);
         var education = new VerticalStackLayout { Spacing = 12 };
         education.Add(Heading("Educational Information", "education", ApplicationGroup.Education, () => Details(ApplicationGroup.Education, "Educational Information", [new("Educational attainment", r.Attainment), new("Course", r.Course), new("School", r.School)])));
-        education.Add(Field(ApplicationGroup.Education, "Educational attainment", ApplicationPresentation.Join(" · ", ApplicationPresentation.Text(r.Attainment), r.Course), true)); education.Add(Field(ApplicationGroup.Education, "School / Year graduated", ApplicationPresentation.Text(r.School) + " · Year not provided")); education.Add(Field(ApplicationGroup.Education, "Address", ""));
+        education.Add(Field(ApplicationGroup.Education, "Educational attainment", ApplicationPresentation.Join(" · ", DisplayText(r.Attainment), r.Course), true)); education.Add(Field(ApplicationGroup.Education, "School / Year graduated", DisplayText(r.School) + " · " + (citizen is null ? "Year not provided" : CitizenSearchPresentation.Missing))); education.Add(Field(ApplicationGroup.Education, "Address", ""));
         sections["education"] = Card(education); personal.Add(sections["education"]);
         var files = Files(r);
         var side = new VerticalStackLayout { Spacing = 12 };
         var actions = new VerticalStackLayout { Spacing = 12 }; actions.Add(Text("Actions", 15, true));
+        if (citizen?.Privacy?.Message is { Length: > 0 } privacyMessage) actions.Add(Text(privacyMessage, 13, muted: true));
         var picker = new Picker { Title = "Select an action", FontSize = 13 };
         picker.Items.Add("Refresh application"); picker.Items.Add("View complete account");
         picker.SetDynamicResource(Picker.TextColorProperty, "DashText");
         if (session?.Current?.Allows("VCARDHOLDERUPDATE") == true) picker.Items.Add("Cardholder update workflow");
-        picker.SelectedIndexChanged += async (_, _) => { var choice = picker.SelectedIndex; if (choice < 0) return; picker.SelectedIndex = -1; if (choice == 0) _ = LoadAsync(number); else if (choice == 1) { if (reveal.DetailsAllowed(ApplicationGroup.Profile)) Details(ApplicationGroup.Profile, "Account", r.AccountFields); else if (Window?.Page is Page page) await page.DisplayAlert("Account", "Show the applicant profile first to view the complete account.", "Close"); } else if (session?.Current?.Allows("VCARDHOLDERUPDATE") == true) WorkflowRequested?.Invoke(OBS.Core.Navigation.Entries.Single(entry => entry.Title == "Cardholder Update")); };
+        picker.SelectedIndexChanged += async (_, _) => { var choice = picker.SelectedIndex; if (choice < 0) return; picker.SelectedIndex = -1; if (choice == 0) { if (citizen is not null) await RefreshCitizen(); else await LoadAsync(number); } else if (choice == 1) { if (reveal.DetailsAllowed(ApplicationGroup.Profile)) Details(ApplicationGroup.Profile, "Account", r.AccountFields); else if (Window?.Page is Page page) await page.DisplayAlert("Account", "Show the applicant profile first to view the complete account.", "Close"); } else if (session?.Current?.Allows("VCARDHOLDERUPDATE") == true) WorkflowRequested?.Invoke(OBS.Core.Navigation.Entries.Single(entry => entry.Title == "Cardholder Update")); };
         actions.Add(Card(picker, new Thickness(8, 0))); side.Add(Card(actions));
         var links = new VerticalStackLayout { Spacing = 2 }; links.Add(Text("Quick Links", 15, true));
         foreach (var (title, id, icon) in new[] { ("Account", "account", "user"), ("Bio Details", "bio", "identity"), ("Emergency Contact", "emergency", "phone"), ("Educational Info", "education", "education"), ("Biometrics", "biometrics", "capture"), ("Documents", "documents", "document") })
@@ -232,17 +282,18 @@ public sealed class ViewApplicationView : ContentView
         });
         avatar.Add(face); avatar.Add(IconButton("camera", "Change applicant photo", null, ApplicationPresentation.EditUnavailable)); content.Add(avatar);
         var name = new Grid { ColumnDefinitions = [new(GridLength.Star), new(30), new(30)], ColumnSpacing = 6, Margin = new Thickness(0, 2, 0, 10) };
-        name.Add(Text(ApplicationPresentation.Text(r.Name), 22, true)); name.Add(IconButton("pencil", "Edit applicant name", null, ApplicationPresentation.EditUnavailable), 1); name.Add(IconButton("eye", "Profile", () => Toggle(ApplicationGroup.Profile, "Profile"), group: ApplicationGroup.Profile, toggle: true), 2); content.Add(name);
+        name.Add(Text(DisplayText(r.Name), 22, true)); name.Add(IconButton("pencil", "Edit applicant name", null, ApplicationPresentation.EditUnavailable), 1); name.Add(IconButton("eye", "Profile", () => Toggle(ApplicationGroup.Profile, "Profile"), group: ApplicationGroup.Profile, toggle: true), 2); content.Add(name);
+        if (citizen?.Source is { } source) { content.Add(Text(CitizenSearchPresentation.Label(source) + " · Citizen ID: " + citizen.CitizenId, 12, muted: true)); content.Add(Text("Photo: " + CitizenSearchPresentation.Missing, 12, muted: true)); }
         foreach (var (icon, caption, value) in new[] { ("hash", "Application Number: ", r.Number), ("mail", "Email: ", r.Email), ("phone", "Phone: ", r.Phone) })
         {
             var row = new Grid { ColumnDefinitions = [new(15), new(GridLength.Star)], ColumnSpacing = 8, Margin = new Thickness(0, 4) };
-            row.Add(Icon(icon, 15)); row.Add(icon == "hash" ? Text(caption + value, 12, muted: true) : PrivateText(ApplicationGroup.Profile, value, 12, muted: true, prefix: caption), 1); content.Add(row);
+            row.Add(Icon(icon, 15)); row.Add(icon == "hash" ? Text(caption + (citizen is null ? value : DisplayText(value)), 12, muted: true) : PrivateText(ApplicationGroup.Profile, value, 12, muted: true, prefix: caption), 1); content.Add(row);
         }
         var badges = new Grid { ColumnDefinitions = [new(GridLength.Star), new(GridLength.Star)], ColumnSpacing = 8, Margin = new Thickness(0, 14, 0, 16) };
         for (var i = 0; i < 2; i++)
         {
             var labels = new VerticalStackLayout { Spacing = 4 }; labels.Add(Text(i == 0 ? "Account" : "Card", 10, muted: true));
-            var status = Text(i == 0 ? ApplicationPresentation.Text(r.Status).ToUpperInvariant() : "NOT PROVIDED", 12, true); status.TextColor = Color.FromArgb(i == 0 ? "#008865" : "#AC6800"); labels.Add(status);
+            var status = Text(i == 0 ? citizen is not null && string.IsNullOrWhiteSpace(r.Status) ? CitizenSearchPresentation.Missing : DisplayText(r.Status).ToUpperInvariant() : citizen is null ? "NOT PROVIDED" : CitizenSearchPresentation.Missing, 12, true); status.TextColor = Color.FromArgb(i == 0 ? "#008865" : "#AC6800"); labels.Add(status);
             var badge = Card(labels, 10); badge.Stroke = new SolidColorBrush(Color.FromArgb(i == 0 ? "#91D1C5" : "#E6BC8C")); badge.BackgroundColor = Color.FromArgb(i == 0 ? "#1842BA9B" : "#18D4A968"); badges.Add(badge, i);
         }
         content.Add(badges);
@@ -253,8 +304,8 @@ public sealed class ViewApplicationView : ContentView
         map.SetDynamicResource(BackgroundColorProperty, "DashPill");
         foreach (var rotation in new[] { -16d, 11d, 55d, -64d }) { var road = new BoxView { HeightRequest = 7, Rotation = rotation, VerticalOptions = LayoutOptions.Center, InputTransparent = true }; road.SetDynamicResource(BoxView.ColorProperty, "DashSidebar"); map.Add(road); }
         map.Add(new BoxView { Color = Color.FromArgb("#B6D7A3"), WidthRequest = 38, HeightRequest = 25, CornerRadius = 5, HorizontalOptions = LayoutOptions.End, VerticalOptions = LayoutOptions.End, Margin = 8 });
-        var mapButton = Button("View Map", async () => { if (reveal.IsVisible(ApplicationGroup.Address) && session?.ProtectedWorkAllowed == true) await Launcher.Default.OpenAsync(ApplicationPresentation.MapUrl(r.Address)); });
-        Watch(ApplicationGroup.Address, () => mapButton.IsEnabled = reveal.IsVisible(ApplicationGroup.Address) && !string.IsNullOrWhiteSpace(r.Address)); mapButton.HorizontalOptions = LayoutOptions.Center; mapButton.VerticalOptions = LayoutOptions.Center; mapButton.SetDynamicResource(BackgroundColorProperty, "DashSidebar"); map.Add(mapButton);
+        var mapButton = Button("View Map", async () => { if (Shown(ApplicationGroup.Address) && session?.ProtectedWorkAllowed == true) await Launcher.Default.OpenAsync(ApplicationPresentation.MapUrl(r.Address)); });
+        Watch(ApplicationGroup.Address, () => mapButton.IsEnabled = Shown(ApplicationGroup.Address) && !string.IsNullOrWhiteSpace(r.Address)); mapButton.HorizontalOptions = LayoutOptions.Center; mapButton.VerticalOptions = LayoutOptions.Center; mapButton.SetDynamicResource(BackgroundColorProperty, "DashSidebar"); map.Add(mapButton);
         content.Add(new Border { Content = map, StrokeThickness = 0, StrokeShape = new RoundRectangle { CornerRadius = 12 } });
         var card = Card(content, new Thickness(15, 15, 15, 42)); sections["account"] = card; return card;
     }
@@ -283,7 +334,7 @@ public sealed class ViewApplicationView : ContentView
         var header = new Grid { ColumnDefinitions = [new(GridLength.Star), new(GridLength.Auto)] }; var title = Text("Documents", 13); title.VerticalOptions = LayoutOptions.Center; header.Add(title);
         var add = Button("Add Attachment", () => { }); add.IsEnabled = false; ToolTipProperties.SetText(add, ApplicationPresentation.AttachmentUnavailable); header.Add(add, 1); documents.Add(header);
         if (reply?.DocumentError is { } error) { documents.Add(Text(error, 12, muted: true)); documents.Add(Button("Retry", () => _ = LoadAsync(number))); }
-        else if (reply?.Documents is not { Count: > 0 }) documents.Add(Text("No documents attached to this application.", 12, muted: true));
+        else if (reply?.Documents is not { Count: > 0 }) documents.Add(Text(citizen is null ? "No documents attached to this application." : CitizenSearchPresentation.Missing, 12, muted: true));
         else foreach (var file in reply.Documents)
         {
             var row = new Grid { ColumnDefinitions = [new(20), new(GridLength.Star), new(30)], ColumnSpacing = 12, MinimumHeightRequest = 48 };
@@ -329,7 +380,8 @@ public sealed class ViewApplicationView : ContentView
     }
     private async void Details(ApplicationGroup group, string title, IReadOnlyList<ApplicationField> fields)
     {
+        if (citizen is not null && CitizenApplicationPresentation.Section(group) is { } section) { privacyDialog?.ShowDetails(section); return; }
         if (reveal.DetailsAllowed(group) && session?.ProtectedWorkAllowed == true && Window?.Page is Page page)
-            await page.DisplayAlert(title, string.Join("\n\n", fields.Select(field => field.Label + "\n" + reveal.DisplayField(group, field))), "Close");
+            await page.DisplayAlert(title, string.Join("\n\n", fields.Select(field => field.Label + "\n" + (citizen is null ? reveal.DisplayField(group, field) : DisplayText(field.Value)))), "Close");
     }
 }

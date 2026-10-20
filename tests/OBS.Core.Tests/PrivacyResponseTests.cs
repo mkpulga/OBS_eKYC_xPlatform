@@ -44,7 +44,7 @@ static class PrivacyResponseTests
     private static string Payload(string route) => route.Split('/').Last() switch
     { "bio" => Bio, "address" => Address, "emergency" => Emergency, "education" => Education, _ => Status };
 
-    private static string Detail(bool locked = false)
+    internal static string Detail(bool locked = false)
     {
         var root = JsonNode.Parse(Bio)!;
         var row = root["data"]![0]!;
@@ -194,9 +194,9 @@ static class PrivacyResponseTests
         add("Protected reads reject mixed applicants invalid field types and ambiguous rows", async () =>
         {
             foreach (var body in new[] {
-                Bio.Replace("\"citizenid\":101", "\"citizenid\":102"), Bio.Replace("\"citizenid\":101", "\"citizenid\":\"101\""),
+                Bio.Replace("\"citizenid\":101", "\"citizenid\":102"), Bio.Replace("\"citizenid\":101", "\"citizenid\":\"other\""),
                 Bio.Replace("\"citizenid\":101", "\"citizenid\":101.5"), Bio.Replace("\"firstname\":\"Alex\"", "\"firstname\":false"),
-                Bio.Replace("\"firstname\":", "\"missingName\":"), Bio.Replace("\"firstname\":\"Alex\"", "\"firstname\":\"Alex\",\"FirstName\":\"Other\""),
+                Bio.Replace("\"firstname\":\"Alex\"", "\"firstname\":\"Alex\",\"FirstName\":\"Other\""),
                 "{\"code\":0,\"data\":[{\"personal-info\":[]}]}", "{\"code\":0,\"data\":[{\"personal-info\":[{},{}]}]}",
                 "{\"code\":0,\"data\":[{\"personal-info\":{}}]}", "{\"code\":0,\"data\":[{},{}]}" })
             {
@@ -312,8 +312,7 @@ static class PrivacyResponseTests
                 Detail(true).Replace("\"canViewAddress\":false", "\"canViewAddress\":false,\"CanViewAddress\":true"),
                 Detail(true).Replace("\"piiAuthorizedSections\":", "\"missingFlags\":"),
                 Detail(true).Replace("\"type\":\"EMAIL_ADDRESS\"", "\"citizenid\":102,\"type\":\"EMAIL_ADDRESS\""),
-                Detail(true).Replace("\"type\":\"EMAIL_ADDRESS\"", "\"type\":false"),
-                Detail(true).Replace("\"referencenumber\":", "\"missingReference\":") })
+                Detail(true).Replace("\"type\":\"EMAIL_ADDRESS\"", "\"type\":false") })
             {
                 using var client = new HttpClient(new Handler((_, _) => Task.FromResult(Response(body))));
                 var staff = new StaffSession("staff@example.invalid", Staff.Tokens, ["VCARDHOLDERUPDATE"]);

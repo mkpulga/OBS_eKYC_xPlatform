@@ -1,6 +1,6 @@
 # OBS_eKYC
 
-The 2026-10-20 [Privacy PII OTP & Dashboard integration handover](docs/api-integration/README.md) records the selected 16-request contract. A new Privacy Verification screen in both clients uses the existing staff login, a directly entered citizen ID and the approved email-code dialog. Existing reference search is retained. Core and screen-state behavior are synthetic-tested; live acceptance, dashboard binding and two detail workflows remain pending. Replacement Privacy sign-in mode keeps its guard; existing deployment defaults remain unchanged.
+The 2026-10-20 [Privacy PII OTP & Dashboard integration handover](docs/api-integration/README.md) records the selected 16-request contract. Both dashboards now offer permission-gated **IG CID** and **CU CID** searches, binding the validated response directly to View Application and refreshing through its original endpoint. Protected sections use the existing OTP verification flow; missing ordinary values display “Not available.” Existing search options and application-number behavior are retained. Live acceptance and dashboard metrics binding remain pending. Replacement Privacy sign-in mode keeps its guard; existing deployment defaults remain unchanged.
 
 This repository contains a migration foundation, **not a completed first release**. It implements shared configuration, source-backed authentication requests/parsing, session control, and permission navigation, with Blazor and MAUI client source. Enrollment screens, administrative workflows, hardware integration, reporting exporters, and live backend acceptance are unfinished.
 
@@ -17,6 +17,7 @@ Use **Visual Studio 2022 17.14** and [.NET SDK 9.0.301](global.json), matching t
 
 ```powershell
 dotnet run --project tests/OBS.Core.Tests/OBS.Core.Tests.csproj
+dotnet run --project tests/OBS.Web.Tests/OBS.Web.Tests.csproj
 ```
 
 For a normal web build:

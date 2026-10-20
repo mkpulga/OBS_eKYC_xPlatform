@@ -5,7 +5,7 @@ using System.Text.Json;
 namespace OBS.Core;
 
 public enum PrivacySection { Bio, Address, Emergency, Education }
-public enum PrivacyReadOutcome { Success, NotVerified, Expired, WrongApplicant, NotPermitted, Rejected, ConnectionFailure, InvalidResponse, Cancelled, Unavailable }
+public enum PrivacyReadOutcome { Success, NotVerified, Expired, WrongApplicant, NotPermitted, Rejected, ConnectionFailure, InvalidResponse, Cancelled, Unavailable, NotFound }
 
 // Server metadata, not a credential or a cached UI session. ApplicantPrivacyController
 // binds it to staff/applicant lifetime; callers of the raw readers must enforce that too.
@@ -46,7 +46,7 @@ public sealed record PrivacyStatusReply(PrivacyReadOutcome Outcome, PrivacyVerif
                 throw new JsonException();
             if (verified.ValueKind == JsonValueKind.False) return new(PrivacyReadOutcome.NotVerified);
             if (!SourceJson.TryGetProperty(row, "applicationId", out var id) || id.ValueKind != JsonValueKind.String ||
-                !ApplicationPresentation.ValidNumber(id.GetString()!)) throw new JsonException();
+                !CitizenId.IsValid(id.GetString())) throw new JsonException();
             if (!string.Equals(id.GetString(), expectedApplicationId, StringComparison.Ordinal)) return new(PrivacyReadOutcome.WrongApplicant);
             if (!SourceJson.TryGetProperty(row, "expiresAt", out var expiry) || expiry.ValueKind != JsonValueKind.String ||
                 !UtcExpiry(expiry.GetString()!, out var expiresAt)) throw new JsonException();

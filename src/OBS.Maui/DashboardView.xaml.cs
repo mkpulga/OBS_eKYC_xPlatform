@@ -24,6 +24,7 @@ public partial class DashboardView : ContentView
     private bool viewPrivacy;
     private PrivacyWorkspace? privacyWorkspace;
     private PrivacyVerificationView? privacyView;
+    private CitizenApplicationSearch? citizenSearch;
     private static readonly NavigationEntry PrivacyNavigation = new("Privacy Verification", []);
     private static readonly NavigationEntry ApplicationNavigation = new("View Application", [CardholderVerificationService.Authority]);
     public event EventHandler? LogoutRequested;
@@ -39,7 +40,8 @@ public partial class DashboardView : ContentView
 #if WINDOWS
         application.BiometricCaptureRequested += () => BiometricCaptureRequested?.Invoke();
 #endif
-        application.WorkflowRequested += entry => { if (modules.Contains(entry)) { selected = entry; viewApplication = viewPrivacy = false; ShowSelectedPage(); } };
+        application.WorkflowRequested += entry => { if (modules.Contains(entry)) { citizenSearch?.Leave(); selected = entry; viewApplication = viewPrivacy = false; ShowSelectedPage(); } };
+        application.CitizenSearchFailed += () => { viewApplication = viewPrivacy = false; Notice(citizenSearch?.Message ?? ""); ShowSelectedPage(); ApplyLayout(); };
         SearchType.SelectedIndex = 0;
         SearchType.HandlerChanged += OnSearchHandlerChanged;
         SearchEntry.HandlerChanged += OnSearchHandlerChanged;
@@ -66,6 +68,8 @@ public partial class DashboardView : ContentView
         this.session = session;
         this.cardholders = cardholders;
         privacyWorkspace = privacy;
+        if (citizenSearch is not null) { citizenSearch.Changed -= CitizenChanged; citizenSearch.Dispose(); }
+        citizenSearch = (privacy ?? new PrivacyWorkspace()).CreateCitizenSearch(session); citizenSearch.Changed += CitizenChanged;
         application.Configure(session, applications ?? new UnavailableApplicationRecords());
         ToolbarCityPicker.Items.Clear(); ToolbarCityPicker.Items.Add(theme.CityName); ToolbarCityPicker.SelectedIndex = 0;
         SubtitleLabel.Text = $"{theme.CityName} · Sample data";
@@ -76,10 +80,12 @@ public partial class DashboardView : ContentView
         OperatorLabel.Text = staff?.Email ?? "";
         InitialsLabel.Text = DashboardPresentation.Initials(staff?.Email ?? "");
         modules = staff is null ? [] : OBS.Core.Navigation.For(staff).ToArray();
+        UpdateCitizenOptions(staff);
         canChangePassword = staff?.Allows("CPW") == true;
         if (staff is null)
         {
             ClearCardholders();
+            citizenSearch?.Leave();
             application.Clear(); viewApplication = viewPrivacy = false;
             selected = null;
             SearchEntry.Text = "";
@@ -209,7 +215,7 @@ public partial class DashboardView : ContentView
         var button = new Button { CornerRadius = 24, Padding = 0, MinimumHeightRequest = compact ? 38 : 46 };
         SemanticProperties.SetDescription(button, text);
         ToolTipProperties.SetText(button, text);
-        button.Clicked += action;
+        button.Clicked += (sender, args) => { if (text is not "Light mode" and not "Dark mode") citizenSearch?.Leave(); action(sender, args); };
         grid.Add(button);
         var content = new Grid { ColumnDefinitions = [new ColumnDefinition(20), new ColumnDefinition(GridLength.Star)], ColumnSpacing = 16, Padding = new Thickness(14, 0), InputTransparent = true };
         var glyph = new DashboardIcon { Kind = icon, VerticalOptions = LayoutOptions.Center };
@@ -227,6 +233,7 @@ public partial class DashboardView : ContentView
         DashboardColumns.IsVisible = selected is null && !viewApplication && !viewPrivacy;
         WorkflowCard.IsVisible = selected is not null && !viewApplication && !viewPrivacy;
         ApplicationHost.IsVisible = viewApplication;
+        if (!viewApplication) application.Clear();
         PrivacyHost.IsVisible = viewPrivacy;
         if (viewPrivacy && privacyView is null && privacyWorkspace?.Available == true && session is not null)
         {
@@ -316,14 +323,16 @@ public partial class DashboardView : ContentView
     private void OpenApplication(string number)
     {
         if (session?.Current?.Allows(CardholderVerificationService.Authority) != true || !session.ProtectedWorkAllowed) { Notice(ApplicationPresentation.Status(ApplicationOutcome.NotPermitted)); return; }
+        citizenSearch?.Leave();
         selected = null; viewApplication = true; viewPrivacy = false; mobileOpen = false; SearchType.SelectedIndex = 0; SearchEntry.Text = number;
         NoticeCard.IsVisible = false; ShowSelectedPage(); ApplyLayout(); _ = application.LoadAsync(number);
     }
     private void OnOverview(object? sender, EventArgs e)
     {
+        citizenSearch?.Leave();
         selected = null; viewApplication = viewPrivacy = false; mobileOpen = false; NoticeCard.IsVisible = false; ShowSelectedPage(); ApplyLayout();
     }
-    public bool CancelPrivacyDialog() => privacyView?.CancelDialogIfOpen() == true;
+    public bool CancelPrivacyDialog() => application.CancelPrivacyDialog() || privacyView?.CancelDialogIfOpen() == true;
     private void OnToggleSidebar(object? sender, EventArgs e)
     {
         if (Width < 900) mobileOpen = !mobileOpen; else collapsed = !collapsed;
@@ -420,10 +429,42 @@ public partial class DashboardView : ContentView
     }
     private void Notice(string message) { NoticeLabel.Text = string.IsNullOrEmpty(sessionMessage) ? message : sessionMessage; NoticeCard.IsVisible = true; }
     private void OnDismissNotice(object? sender, EventArgs e) { if (string.IsNullOrEmpty(sessionMessage)) NoticeCard.IsVisible = false; }
-    private void OnSearch(object? sender, EventArgs e)
+    private async void OnSearch(object? sender, EventArgs e)
     {
-        if (SearchType.SelectedIndex is 0 or 3) OpenApplication(SearchEntry.Text ?? "");
+        if (citizenSearch?.IsBusy == true) return;
+        if (CitizenSearchPresentation.Source(SearchType.SelectedItem?.ToString() ?? "") is not null && citizenSearch is not null)
+        {
+            selected = null; viewApplication = viewPrivacy = false; application.Clear(); NoticeCard.IsVisible = false;
+            ShowSelectedPage(); ApplyLayout();
+            citizenSearch.SetCriteria(SearchType.SelectedItem?.ToString() ?? "", SearchEntry.Text ?? "");
+            if (await citizenSearch.SearchAsync() && citizenSearch.Snapshot is not null)
+            {
+                viewApplication = true; mobileOpen = false;
+                application.ShowCitizen(citizenSearch, content => { PrivacyDialogHost.Content = content; PrivacyDialogHost.IsVisible = content is not null; });
+                ShowSelectedPage(); ApplyLayout();
+            }
+            else if (!string.IsNullOrEmpty(citizenSearch.Message)) Notice(citizenSearch.Message);
+        }
+        else if (SearchType.SelectedIndex is 0 or 3) OpenApplication(SearchEntry.Text ?? "");
         else Notice(string.IsNullOrWhiteSpace(SearchEntry.Text) ? "Enter a value to search." : "This search method is not available yet. Select Application Number.");
+    }
+    private void OnSearchCriteriaChanged(object? sender, EventArgs e) => citizenSearch?.SetCriteria(SearchType.SelectedItem?.ToString() ?? "Application Number", SearchEntry.Text ?? "");
+    private void CitizenChanged() => MainThread.BeginInvokeOnMainThread(() =>
+    {
+        var busy = citizenSearch?.IsBusy == true;
+        SearchButton.IsEnabled = !busy; SearchLoading.IsVisible = SearchLoading.IsRunning = busy;
+        SemanticProperties.SetDescription(SearchButton, busy ? "Searching…" : "Search records");
+    });
+    private void UpdateCitizenOptions(StaffSession? staff)
+    {
+        var selection = SearchType.SelectedItem?.ToString() ?? "Application Number";
+        foreach (var source in Enum.GetValues<CitizenSearchSource>())
+        {
+            var label = CitizenSearchPresentation.Label(source);
+            if (CitizenSearchPresentation.Allowed(staff, source)) { if (!SearchType.Items.Contains(label)) SearchType.Items.Add(label); }
+            else SearchType.Items.Remove(label);
+        }
+        SearchType.SelectedItem = SearchType.Items.Contains(selection) ? selection : "Application Number";
     }
     private void OnScan(object? sender, EventArgs e) => Notice("QR scanning is not available on this dashboard yet.");
     private void OnNotifications(object? sender, EventArgs e) => Notice("No notifications to display. This dashboard displays sample data.");
